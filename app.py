@@ -29,7 +29,7 @@ with st.sidebar:
 
     filters = {
         'COUNTRY_NAME': None if selected_country == 'All' else [selected_country, 'Czech Republic'],
-        'YEAR': None if selected_years == 'All' else selected_years,
+        'YEAR': None if selected_years == years_list else selected_years,
         'SEX': None if selected_sex == ['Girls', 'Boys'] else selected_sex,
 }
     
@@ -42,6 +42,7 @@ for col, val in filters.items():
         filtered = filtered[filtered[col].isin(val)]
     else:
         filtered = filtered[filtered[col] == val]
+
 st.dataframe(filtered[0:100])
 
 
