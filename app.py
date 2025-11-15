@@ -13,36 +13,40 @@ if 'data' not in st.session_state:
     st.session_state.data = pd.read_csv('data.csv')
 
 
+country_list = st.session_state.data['COUNTRY_NAME'].unique().tolist()
+years_list = st.session_state.data['YEAR'].unique().tolist()
+
 # ------------------------------------------------------------
 # SIDEBAR MENU
 # ------------------------------------------------------------
-st.sidebar.title("📚 Menu")
+with st.sidebar:
+    st.sidebar.title("📚 Menu")
+    filters = {}
+    selected_country = st.selectbox('Select Country', options = ['All'] + country_list)
+    selected_sex = st.multiselect('Select Gender', options = ['Girls', 'Boys'], default = ['Girls', 'Boys'] )
+    selected_years = st.multiselect('Select years', options = years_list, default = years_list)
 
-page = st.sidebar.selectbox(
-    "Vyber stránku:",
-    [
-        "🏠 Domů",
-        "📊 Analýza nadváhy",
-        "📊 Anet – Grafy",
-        "📈 Lenka – Obezita v Evropě"
-    ]
-)
 
-# ------------------------------------------------------------
-# STRÁNKY
-# ------------------------------------------------------------
+    filters = {
+        'COUNTRY_NAME': None if selected_country == 'All' else [selected_country, 'Czech Republic'],
+        'YEAR': None if selected_years == 'All' else selected_years,
+        'SEX': None if selected_sex == ['Girls', 'Boys'] else selected_sex,
+}
+    
 
-if page == "🏠 Domů":
-    st.title("Vítej v naší aplikaci 👋")
-    st.write("Tady můžeš zkoumat data o dětech, obezitě a dalších faktorech.")
+filtered = st.session_state.data.copy()
+for col, val in filters.items():
+    if val is None:
+        continue
+    if isinstance(val, (list, tuple, set)):
+        filtered = filtered[filtered[col].isin(val)]
+    else:
+        filtered = filtered[filtered[col] == val]
+st.dataframe(filtered[0:100])
 
-elif page == "📊 Analýza nadváhy":
-    st.title("📊 Analýza nadváhy")
-    st.write("Sem můžeš vložit graf porovnání dětí v ČR a v EU.")
 
-elif page == "📊 Anet – Grafy":
-    st.title("📊 Anet – Grafy")
-    st.write("Sem přijdou Anetiny grafy. Pokud chceš, udělám ti hotovou Anet stránku.")
 
-elif page == "📈 Lenka – Obezita v Evropě":
-    show_lenka_page()
+
+
+
+
