@@ -9,6 +9,10 @@ from pages.lenka import show_lenka_page
 # from pages.anet import show_anet_page
 
 
+if 'data' not in st.session_state:
+    st.session_state.data = pd.read_csv('data.csv')
+
+
 # ------------------------------------------------------------
 # SIDEBAR MENU
 # ------------------------------------------------------------
