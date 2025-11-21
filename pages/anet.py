@@ -7,41 +7,64 @@ pio.renderers.default = "vscode"
 px.defaults.template = "plotly"
 import plotly.graph_objects as go
 
-if 'data' not in st.session_state:
-    st.session_state.data = pd.read_csv('data.csv')
 
-
-
+#########################################################
 # STREAMLIT PAGE SETUP
 
 st.set_page_config(
     page_title="Gender Dashboard",  
-    layout="wide",  # page layout : use the entire screen
+    layout="wide",  
 )
 
 st.title("Gender Dashboard")
 
 
+###########################################################
+# LOADING DATA
+# already loaded on app.py - using df for convenience
+
+if "data" not in st.session_state:
+    st.session_state.data = pd.read_csv('data.csv')
+
+df = st.session_state.data
+
+
+
 ##############################################################
+# FILTERS at SIDEBAR
+# Country, Year, Age
 
-## FILTERS at SIDEBAR
+country_list = sorted(df["COUNTRY_NAME"].unique().tolist())
+years_list = sorted(df['YEAR'].unique().tolist())
+age_list = sorted(df["AGE"].unique().tolist())
 
-country_list = st.session_state.data['COUNTRY_NAME'].unique().tolist()
-years_list = st.session_state.data['YEAR'].unique().tolist()
 
-
+# defining sidebar via context manager with st.sidebar
+# # st.selectbox (label , options= to choose from, index=..) 
 with st.sidebar:
     st.sidebar.title("📚 Menu")
-    filters = {}
-    selected_country = st.selectbox('Select Country', options = ['All'] + country_list)
-    selected_years = st.multiselect('Select years', options = years_list, default = years_list)
+    selected_country = st.selectbox(
+        'Select Country', 
+        options = ['All'] + country_list
+    )
+    selected_years = st.multiselect(
+        'Select years', 
+        options = years_list, 
+        default = years_list
+    )
+    selected_age = st.multiselect(
+        'Select age',
+        options = age_list,
+        default = age_list
+    )
 
-
-    filters = {
-        'COUNTRY_NAME': None if selected_country == 'All' else [selected_country, 'Czech Republic'],
-        'YEAR': None if selected_years == years_list else selected_years,
-    }
+filters = {
+    "COUNTRY_NAME": None if selected_country == 'All' else selected_country,
+    "YEAR": None if set(selected_years) == set(years_list) else selected_years,
+    "AGE": None if set(selected_age) == set(age_list) else selected_age
+}
     
+
 ###############################################
 
 
