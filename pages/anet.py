@@ -43,9 +43,10 @@ age_list = sorted(df["AGE"].unique().tolist())
 # # st.selectbox (label , options= to choose from, index=..) 
 with st.sidebar:
     st.sidebar.title("📚 Menu")
-    selected_country = st.selectbox(
+    selected_countries = st.multiselect(
         'Select Country', 
-        options = ['All'] + country_list
+        options = country_list,
+        default=country_list
     )
     selected_years = st.multiselect(
         'Select years', 
@@ -59,18 +60,33 @@ with st.sidebar:
     )
 
 filters = {
-    "COUNTRY_NAME": None if selected_country == 'All' else selected_country,
+    "COUNTRY_NAME": None if set(selected_countries) == set(selected_countries) else selected_countries,
     "YEAR": None if set(selected_years) == set(years_list) else selected_years,
     "AGE": None if set(selected_age) == set(age_list) else selected_age
 }
-    
 
-###############################################
+# applying filters to graphs
+df_filtered = df.copy()
+for column, value in filters.items():
+    if value is None:
+        continue
+    if isinstance(value, (list, tuple, set)):
+        df_filtered = df_filtered[df_filtered[column].isin(value)]
+    else:
+        df_filtered = df_filtered[df_filtered[column] == value]
+
+
+# temporary check
+st.write("Filtered rows:", len(df_filtered))
+st.dataframe(df_filtered.head())
 
 
 
+#######################################################
+# DEFINING FACTORS, SCALES
 
-# columns odpovidaji top cca 20 z radom forest modelu + talk_mother pridan jako protipol talk_father
+
+# columns odpovidaji top cca 20 z radom forest modelu 
 list_columns = [
     "SWEETS", 
     "TOOTH_BRUSHING", 
@@ -131,7 +147,7 @@ dict_scales = {
     "SCHOOL_PRESSURE": 4
 }
 
-# ty factors kde vyssi hodnota = zdravejsi (5 nikdy headache, 6 snidane kazdy den, 7 hodne sportuje -> reverse aby max nejhorsi/nejmene zdravy)
+# ty factors kde v source data vyssi hodnota= zdravejsi (5 nikdy headache, 6 snidane kazdy den, 7 hodne sportuje -> reverse aby max= nejhorsi/nejmene zdravy)
 reverse_scales = {
     "HEADACHE",
     "NERVOUS",
@@ -148,35 +164,53 @@ reverse_scales = {
     "VEGETABLES"
 }
 
-# Normalizace 0-1:
-    # - výsledek 0 (min) = nejlepší (zdravější)
-    # - výsledek 1 (max) = nejhorší (rizikovost)
 
-def make_df_2018_norm(df_in):
+########################################################
+# NORMALIZACE 0-1:
+# - výsledek 0 (min) = nejlepší (zdravější)
+# - výsledek 1 (max) = nejhorší (rizikovost)
+
+def prep_df_2018_normalized(df_input):
     # Vrátí DF jen pro rok 2018 + normalizované faktory 0-1,
     # kde 0 ~ nejzdravější, 1 ~ nejrizikovější.
-    df_2018 = df_in[df_in["YEAR"] == 2018].copy()
-    for col in list_columns:
-        df_2018[col] = df_2018[col] / dict_scales[col]
-        if col in reverse_scales:
-            df_2018[col] = 1 - df_2018[col]
+    df_2018 = df_input[df_input["YEAR"] == 2018].copy()
+    for factor in list_columns:
+        df_2018[factor] = df_2018[factor] / dict_scales[factor]
+        if factor in reverse_scales:
+            df_2018[factor] = 1 - df_2018[factor]
     return df_2018
 
-df_2018_norm = make_df_2018_norm(st.session_state.data)
+df_2018_normalized = prep_df_2018_normalized(df_filtered)
 
 
 
 
-
+##########################################################
 # GRAPH 1 - Overweight overview in time - Boys vs Girls
 
-df_trend = st.session_state.data.groupby(["YEAR", "SEX"], as_index=False)["OVERWEIGHT"].mean()
 
-df_trend['SEX'] = df_trend['SEX'].map({2: 'Girls', 1: 'Boys'})
-colors = {'Girls': "#eb8fbd", # pink
-'Boys': "#3b8ee1"} # blue
+if df_filtered.empty:
+    st.warning("No data for selected filters.")
+    fig1 = None
+else:
+    df_trend = (
+        df_filtered
+        .groupby(["YEAR", "SEX"], as_index=False, observed=True)["OVERWEIGHT"]
+        .mean()
+    )
 
-fig1 = px.line(df_trend, y="OVERWEIGHT", x="YEAR", title="Overweight in Time", color="SEX", color_discrete_map=colors)
+df_trend["SEX_LABEL"] = df_trend["SEX"].map({1: 'Boys', 2: 'Girls'})
+colors = {'Girls': "#eb8fbd", 'Boys': "#3b8ee1"}
+
+fig1 = px.line(
+    df_trend, 
+    y="OVERWEIGHT", 
+    x="YEAR", 
+    title="Overweight in Time", 
+    color="SEX_LABEL", 
+    color_discrete_map=colors
+)
+
 fig1.update_yaxes(range=[0, 0.5])
 fig1.update_xaxes(tickvals=[2002, 2006, 2010, 2014, 2018])
 fig1.update_traces(fill="tozeroy")
@@ -188,117 +222,110 @@ fig1.update_layout(
 )
 
 
-# -----------------------------------------
-# GRAPH 2
-# korelace faktorů s OVERWEIGHT (2018, normované df_2018_norm)
+########################################################
+# KORELACE faktorů s OVERWEIGHT (2018, normované df_2018_norm)
+# prep for Graph 2 (top 5)
+
 corr_series = (
-    df_2018_norm[list_columns + ["OVERWEIGHT"]]
+    df_2018_normalized[list_columns + ["OVERWEIGHT"]]
     .corr()["OVERWEIGHT"]
     .drop("OVERWEIGHT")
 )
 
 corr_abs = corr_series.abs()
-
 top5_corr = corr_abs.sort_values(ascending=False).head(5).index.tolist()
-print("TOP 5 podle |korelace s OW|:", top5_corr)
+print("TOP 5 podle |korelace s OW|:", top5_corr) # check
 
 
-# -----------------------------------------
+
+##########################################################
 # GRAPH 3 – gender gap by factor (Girls − Boys)
 # seřazeno od "nejvíc holky" po "nejvíc kluci"
-# -----------------------------------------
 
-# faktory, které NEJSOU v grafu 2
-remaining_factors = [f for f in list_columns if f not in top5_corr]
+if df_2018_normalized.empty:
+    fig3 = None
+else:
+    # faktory, které NEJSOU v grafu 2
+    remaining_factors = [f for f in list_columns if f not in top5_corr]
+    # jen overweight děti
+    df_ow_2018 = df_2018_normalized[df_2018_normalized["OVERWEIGHT"] == 1].copy()
+    # průměry podle pohlaví
+    sex_means_all = (
+        df_ow_2018
+        .groupby("SEX", as_index=False, observed=True)[remaining_factors]
+        .mean()
+    )
+    sex_long_all = sex_means_all.melt(
+        id_vars=["SEX"],
+        value_vars=remaining_factors,
+        var_name="FACTOR",
+        value_name="VALUE"
+    )
+    sex_long_all["SEX_STRING"] = sex_long_all["SEX"].map({1: "Boys", 2: "Girls"})
+    # tabulka gender gapu
+    gap_table_rest = (
+        sex_long_all
+        .groupby(["FACTOR", "SEX_STRING"], observed=True)["VALUE"]
+        .mean()
+        .unstack("SEX_STRING")
+    )
+    gap_table_rest["GIRLS_MINUS_BOYS"] = gap_table_rest["Girls"] - gap_table_rest["Boys"]
+    df_gap = gap_table_rest.reset_index()
+    # pořadí faktorů podle gender gapu:
+    # nejdřív holky horší (nejvyšší +), pak až kluci (nejnižší −)
+    factor_order = (
+        df_gap
+        .sort_values("GIRLS_MINUS_BOYS", ascending=False)["FACTOR"]
+        .tolist()
+    )
+    # kdo má vyšší průměr (jen pro barvu)
+    df_gap["SIDE"] = np.where(
+        df_gap["GIRLS_MINUS_BOYS"] > 0,
+        "Girls",
+        "Boys"
+    )
 
-# jen overweight děti
-df_ow_2018 = df_2018_norm[df_2018_norm["OVERWEIGHT"] == 1].copy()
+    color_gap = {
+        "Girls": "#eb8fbd",
+        "Boys": "#3b8ee1"
+    }
 
-# průměry podle pohlaví
-sex_means_all = (
-    df_ow_2018
-    .groupby("SEX", as_index=False)[remaining_factors]
-    .mean()
-)
+    # pro symetrickou osu si můžeme spočítat min/max
+    y_min = df_gap["GIRLS_MINUS_BOYS"].min()
+    y_max = df_gap["GIRLS_MINUS_BOYS"].max()
+    pad   = 0.05 * max(abs(y_min), abs(y_max))
 
-sex_long_all = sex_means_all.melt(
-    id_vars=["SEX"],
-    value_vars=remaining_factors,
-    var_name="FACTOR",
-    value_name="VALUE"
-)
+    fig3 = px.bar(
+        df_gap,
+        x="FACTOR",
+        y="GIRLS_MINUS_BOYS",
+        color="SIDE",
+        color_discrete_map=color_gap,
+        category_orders={"FACTOR": factor_order},
+        title="Gender Gap by Risk Factor"
+    )
 
-sex_long_all["SEX_STRING"] = sex_long_all["SEX"].map({1: "Boys", 2: "Girls"})
+    fig3.update_layout(
+        xaxis_title="Risk factor",
+        yaxis_title="Gender gap (Girls - Boys, scaled 0-1)",
+        legend_title="Higher risk in",
+        xaxis=dict(tickangle=-40),
+        yaxis=dict(
+            zeroline=True,
+            zerolinecolor="black",
+            zerolinewidth=1.5,
+            range=[y_min - pad, y_max + pad]
+        ),
+        height=500,
+        margin=dict(l=80, r=40, b=120)
+    )
 
-# tabulka gender gapu
-gap_table_rest = (
-    sex_long_all
-    .groupby(["FACTOR", "SEX_STRING"])["VALUE"]
-    .mean()
-    .unstack("SEX_STRING")
-)
-
-gap_table_rest["GIRLS_MINUS_BOYS"] = gap_table_rest["Girls"] - gap_table_rest["Boys"]
-
-df_gap = gap_table_rest.reset_index()
-
-# pořadí faktorů podle gender gapu:
-# nejdřív holky horší (nejvyšší +), pak až kluci (nejnižší −)
-factor_order = (
-    df_gap
-    .sort_values("GIRLS_MINUS_BOYS", ascending=False)["FACTOR"]
-    .tolist()
-)
-
-# kdo má vyšší průměr (jen pro barvu)
-df_gap["SIDE"] = np.where(
-    df_gap["GIRLS_MINUS_BOYS"] > 0,
-    "Girls",
-    "Boys"
-)
-
-color_gap = {
-    "Girls": "#eb8fbd",
-    "Boys": "#3b8ee1"
-}
-
-# pro symetrickou osu si můžeme spočítat min/max
-y_min = df_gap["GIRLS_MINUS_BOYS"].min()
-y_max = df_gap["GIRLS_MINUS_BOYS"].max()
-pad   = 0.05 * max(abs(y_min), abs(y_max))
-
-fig3 = px.bar(
-    df_gap,
-    x="FACTOR",
-    y="GIRLS_MINUS_BOYS",
-    color="SIDE",
-    color_discrete_map=color_gap,
-    category_orders={"FACTOR": factor_order},
-    title="Gender Gap by Risk Factor"
-)
-
-fig3.update_layout(
-    xaxis_title="Risk factor",
-    yaxis_title="Gender gap (Girls − Boys, scaled 0–1)",
-    legend_title="Higher risk in",
-    xaxis=dict(tickangle=-40),
-    yaxis=dict(
-        zeroline=True,
-        zerolinecolor="black",
-        zerolinewidth=1.5,
-        range=[y_min - pad, y_max + pad]
-    ),
-    height=500,
-    margin=dict(l=80, r=40, b=120)
-)
-
-
-### SETTING DASHBOARD STUCTURE
+#########################################
+# DASHBOARD LAYOUT
 
 col1, col2 = st.columns(2)
 with col1:
     st.plotly_chart(fig1, use_container_width=True)
-# Violin Plot
 with col2:
     st.plotly_chart(fig3, use_container_width=True)
 
