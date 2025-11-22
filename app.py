@@ -2,8 +2,12 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+
 # Import stránky Lenka
 from pages.lenka import show_lenka_page
+
+show_lenka_page()
+
 
 # (Volitelně) import Anet stránky – až ji vytvoříš
 # from pages.anet import show_anet_page
