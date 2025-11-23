@@ -5,12 +5,8 @@ import numpy as np
 
 # Import stránky Lenka
 from pages.lenka import show_lenka_page
-
 show_lenka_page()
 
-
-# (Volitelně) import Anet stránky – až ji vytvoříš
-# from pages.anet import show_anet_page
 
 # loading data - to be used na jednotlivych pages
 # oprava 2 Belgium na jednotny stat
