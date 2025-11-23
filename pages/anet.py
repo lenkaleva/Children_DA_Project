@@ -8,17 +8,22 @@ import plotly.express as px
 #########################################################
 # STREAMLIT PAGE SETUP
 
-st.title("Gender Dashboard")
+st.title("Gender Differences in Childhood Overweight")
 st.set_page_config(layout="wide")
 
 ###########################################################
 # LOADING DATA
 # already loaded on app.py - using df for convenience
+if 'data' not in st.session_state:
+    df = pd.read_csv('data.csv')
+    df["COUNTRY_NAME"] = df["COUNTRY_NAME"].replace({
+        "Belgium (Flemish)": "Belgium",
+        "Belgium (French)": "Belgium"
+    })
+    st.session_state.df = df
+else:
+    df = st.session_state.df
 
-if "data" not in st.session_state:
-    st.session_state.data = pd.read_csv('data.csv')
-
-df = st.session_state.data
 
 
 
@@ -27,9 +32,7 @@ df = st.session_state.data
 # Country, Age
 
 country_list = sorted(df["COUNTRY_NAME"].unique().tolist())
-age_list = sorted(df["AGE"].unique().tolist())
-
-st.markdown("### Filters")
+age_list = sorted([age for age in df["AGE"].unique().tolist() if age not in(10, 17)])
 
 column_country, column_age = st.columns(2)
 
@@ -180,7 +183,7 @@ else:
         df_trend, 
         y="OVERWEIGHT", 
         x="YEAR", 
-        title="Overweight in Time", 
+        title="Overweight Trend by Gender (2002-2018)", 
         color="SEX_LABEL", 
         color_discrete_map=colors
     )
@@ -190,19 +193,29 @@ else:
     fig1.update_traces(fill="tozeroy")
 
     fig1.update_layout(
-        xaxis_title="Year",
-        yaxis_title="Overweight (0-1)",
-        legend_title="Gender"
+    xaxis_title="Year",
+    yaxis_title="Overweight prevalence (0–1)",
+    legend_title="Gender",
+    title=dict(
+        text="Overweight Trend by Gender (2002–2018)",
+        font=dict(size=24)
+    ),
+    margin=dict(l=80, r=40, t=60, b=60)  # stejné 't' jako u fig2
     )
-#if fig1 is not None:
-    #st.plotly_chart(fig1, use_container_width=True)
+
+    fig1.update_layout(
+    title=dict(
+        text="Overweight Trend by Gender",
+        font=dict(size=24)
+    )
+    )
+
 
 
 ########################################################
 # GRAPH 2
 # Overweight vs Non-overweight - risk factors via average difference
 
-fig2 = None 
 
 if df_2018_normalized.empty:
     st.info("No data with selected filters.")
@@ -230,13 +243,13 @@ else:
 
         df_diff["SIDE"] = np.where(
             df_diff["DIFFERENCE"] > 0,
-            "Overweight higher",
-            "Non-overweight higher"
+            "Overweight",
+            "Non-overweight"
         )
 
         color_ow = {
-            "Overweight higher": "orangered",
-            "Non-overweight higher": "seagreen"
+            "Overweight": "orangered",
+            "Non-overweight": "seagreen"
         }
 
         fig2 = px.bar(
@@ -247,21 +260,34 @@ else:
             color="SIDE",
             color_discrete_map=color_ow,
             category_orders={"FACTOR": df_diff["FACTOR"].tolist()},
-            title="Top behaviour differences (Overweight - Non-overweight, 2002-2018, normalized 0-1)",
+            title="Behavioural Differences: Overweight vs Non-overweight",
         )
 
         fig2.update_layout(
-            xaxis_title="Difference (OW - Non-OW, normalized 0-1; >0 = OW worse)",
-            yaxis_title="Factor",
-            legend_title="Higher risk in",
+            xaxis_title="Overweight - Non-Overweight (difference)",
+            yaxis_title="Risk Factor",
+            legend_title="Group with higher risk",
             xaxis=dict(
-                zeroline=True,
-                zerolinecolor="black",
-                zerolinewidth=1.5
+                tickmode="linear",
+                tick0=0,
+                dtick=0.05,
+                showgrid=True,
+                gridcolor="lightgray",
+                gridwidth=1,
+                zeroline=False
             ),
             height=450,
             margin=dict(l=140, r=40, t=60, b=60),
-        )
+            
+            title=dict(
+                text="Overweight vs Non-overweight Differences (2018)",
+                font=dict(size=24)
+            )
+
+            )
+        
+        
+            
 
 
 
@@ -310,15 +336,7 @@ if not df_2018_normalized.empty:
         )
 
     gap_table["GIRLS_MINUS_BOYS"] = gap_table["Girls"] - gap_table["Boys"]
-    gap_table["ABS_GAP"] = gap_table["GIRLS_MINUS_BOYS"].abs()
-
-    # pořadí faktorů podle velikosti rozdílu (největší gap nahoře)
-    factor_order_top5 = (
-        gap_table
-        .sort_values("ABS_GAP", ascending=False)
-        .index
-        .tolist()
-    )
+    factor_order_top5 = top5_corr 
 
     colors = {"Boys": "#3b8ee1", "Girls": "#eb8fbd"}
 
@@ -331,16 +349,18 @@ if not df_2018_normalized.empty:
         barmode="group",
         category_orders={"FACTOR": factor_order_top5},
         color_discrete_map=colors,
-        title="Top 5 faktorů podle korelace s overweight - Boys vs Girls (OW only, 2018)"
+        title="Top 5 Risk Factors by Gender (Overweight children, 2018, normalized 0-1)"
     )
 
     fig3.update_layout(
-        xaxis_title="Average (normalized 0-1, higher = worse)",
+        xaxis_title="Average risk (0-1)",
         yaxis_title="Risk factor",
-        legend_title="Gender"
+        legend_title="Gender",
+        title=dict(
+                text="Top 5 Risk Factors by Gender (2018)",
+                font=dict(size=24)
+            )
     )
-
-#st.plotly_chart(fig3, use_container_width=True)
 
 
 ##########################################################
@@ -405,31 +425,40 @@ if not df_2018_normalized.empty and fig3 is not None:
             color="SIDE",
             color_discrete_map=color_gap,
             category_orders={"FACTOR": factor_order},
-            title="Gender Gap by Risk Factor"
+            title="Gender Gap Across Risk Factors (Overweight children, 2018)"
         )
 
         fig4.update_layout(
             xaxis_title="Risk factor",
-            yaxis_title="Gender gap (Girls - Boys, scaled 0-1)",
-            legend_title="Higher risk in",
+            yaxis_title="Girls - Boys (difference)",
+            legend_title="Group with higher risk",
             xaxis=dict(tickangle=-40),
             yaxis=dict(
-                zeroline=True,
-                zerolinecolor="black",
-                zerolinewidth=1.5,
-                range=[y_min - pad, y_max + pad]
+                tickmode="linear",
+                tick0=0,
+                dtick=0.05,          # krok mezi linkami
+                showgrid=True,
+                gridcolor="lightgray",
+                gridwidth=1,
+                zeroline=False,
+                showline=False,
+                linewidth=0
             ),
             height=500,
-            margin=dict(l=80, r=40, b=120)
+            margin=dict(l=80, r=40, b=120),
+            title=dict(
+                text="Gender Gap by Risk Factor (2018)",
+                font=dict(size=24)
+            )
         )
+            
+                
+        
 
-    #st.plotly_chart(fig4, use_container_width=True)
 
 
 #####################################################
 # DASHBOARD LAYOUT
-
-st.markdown("### Dashboard")
 
 row1_col1, row1_col2 = st.columns(2)
 with row1_col1:

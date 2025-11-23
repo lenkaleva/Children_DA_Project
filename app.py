@@ -11,12 +11,9 @@ show_lenka_page()
 # loading data - to be used na jednotlivych pages
 # oprava 2 Belgium na jednotny stat
 if 'data' not in st.session_state:
-    df = pd.read_csv('data.csv')
-    df["COUNTRY_NAME"] = df["COUNTRY_NAME"].replace({
-        "Belgium (Flemish)": "Belgium",
-        "Belgium (French)": "Belgium"
-    })
-    st.session_state.data = df
+    st.session_state.data = pd.read_csv('data.csv')
+   
+df = st.session_state.data
 
 
 country_list = st.session_state.data['COUNTRY_NAME'].unique().tolist()
