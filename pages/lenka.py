@@ -58,8 +58,46 @@ def show_lenka_page():
 
     st.set_page_config(page_title="Analýza dětské obezity", layout="wide")
 
+    # Globální styl – světle šedé pozadí + karty
+    st.markdown("""
+        <style>
+        [data-testid="stAppViewContainer"] {
+            background-color: #f3f3f3;
+        }
+        .kpi-card {
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid #dddddd;
+            padding: 14px 16px;
+            text-align: center;
+        }
+        .kpi-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #555555;
+            margin-bottom: 4px;
+        }
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: #222222;
+        }
+        .kpi-sub {
+            font-size: 0.75rem;
+            color: #777777;
+        }
+        .card {
+            background: #ffffff;
+            border-radius: 14px;
+            border: 1px solid #dddddd;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     st.title("Analýza dětské obezity podle zemí")
-    st.write("Interaktivní dashboard s KPI a vizualizacemi.")
+
 
     # ------------------------------------------------------------
     # LOAD DATA
@@ -93,50 +131,117 @@ def show_lenka_page():
     df.loc[df["BUL_BEEN"] == 999, "BUL_BEEN"] = np.nan
 
     # ============================================================
-    # FILTRY — ZEMĚ, POHLAVÍ, VĚK, ROK PRO KPI
+    # KPI – nahoře, v bílých čtverečcích, vždy z roku 2018
     # ============================================================
-    st.subheader("Filtry")
+    
+    df_2018 = df[df["YEAR"] == 2018].copy()
 
-    col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+    cz_over = df_2018[df_2018["COUNTRY_NAME"] == "Czech Republic"]["OVERWEIGHT"].mean()
+    eu_over = df_2018[df_2018["COUNTRY_NAME"].isin(eu_list)]["OVERWEIGHT"].mean()
+    global_over = df_2018["OVERWEIGHT"].mean()
+    n_countries_total = df_2018["COUNTRY_NAME"].nunique()
+
+    # Top rizikový faktor za 2018 (globálně)
+    df_norm_kpi = df_2018.copy()
+    for f in factors:
+        maxv = dictionary[f]
+        df_norm_kpi[f] = (maxv + 1 - df_norm_kpi[f]) / maxv if f in reverse_scales else df_norm_kpi[f] / maxv
+
+    corr_kpi = (
+        df_norm_kpi[factors + ["OVERWEIGHT"]]
+        .corr()["OVERWEIGHT"]
+        .drop("OVERWEIGHT")
+        .abs()
+        .sort_values(ascending=False)
+    )
+
+    if not corr_kpi.empty:
+        top_factor_code = corr_kpi.index[0]
+        top_factor_pretty = top_factor_code.replace("_", " ").title()
+    else:
+        top_factor_pretty = "—"
+
+    colK1, colK2, colK3, colK4, colK5 = st.columns(5)
+
+    with colK1:
+        st.markdown(
+            f"""
+            <div class="kpi-card">
+                <div class="kpi-title">🇨🇿 Obezita v ČR</div>
+                <div class="kpi-value"><b>{cz_over:.2f}</b></div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with colK2:
+        st.markdown(
+            f"""
+            <div class="kpi-card">
+                <div class="kpi-title">🇪🇺 EU průměr</div>
+                <div class="kpi-value"><b>{eu_over:.2f}</b></div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with colK3:
+        st.markdown(
+            f"""
+            <div class="kpi-card">
+                <div class="kpi-title">🌍 Globální průměr</div>
+                <div class="kpi-value"><b>{global_over:.2f}</b></div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with colK4:
+        st.markdown(
+            f"""
+            <div class="kpi-card">
+                <div class="kpi-title">📊 Počet zemí v datasetu</div>
+                <div class="kpi-value"><b>{n_countries_total}</b></div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with colK5:
+        st.markdown(
+            f"""
+            <div class="kpi-card">
+                <div class="kpi-title">🔥 Top rizikový faktor</div>
+                <div class="kpi-value"><b>{top_factor_pretty}</b></div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # ============================================================
+    # PRVNÍ GRAF + FILTRY VEDLE SEBE (bez filtru věku)
+    # ============================================================
+    st.subheader("📈 Vývoj prevalence obezity v čase")
+
+    col_graph1, col_filters = st.columns([3, 1])
 
     default_country = "Czech Republic"
     all_countries = sorted(df["COUNTRY_NAME"].unique())
     options = ["All countries"] + all_countries
 
-    with col_f1:
+    with col_filters:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown("**Filtry**")
         selected_country = st.selectbox("Vyber druhou zemi:", options, index=1)
 
-    with col_f2:
         sex_choice = st.radio(
             "Pohlaví:",
             ["Vše", "Jen dívky", "Jen chlapce"],
-            horizontal=True
+            horizontal=False
         )
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    with col_f3:
-        min_age, max_age = int(df["AGE"].min()), int(df["AGE"].max())
-        age_min, age_max = st.slider(
-            "Věkové rozpětí:",
-            min_value=min_age,
-            max_value=max_age,
-            value=(min_age, max_age)
-        )
-
-    with col_f4:
-        year_options = ["Všechny roky"] + sorted(df["YEAR"].unique())
-        selected_year_kpi = st.selectbox("Rok pro KPI:", year_options)
-
-    # ============================================================
-    # DEFINICE POROVNÁVANÝCH ZEMÍ
-    # ============================================================
-    if selected_country == "All countries":
-        compare_countries = all_countries
-    else:
-        compare_countries = [default_country, selected_country]
-
-    # ============================================================
-    # APLIKACE FILTRŮ (pohlaví + věk)
-    # ============================================================
+    # Aplikace filtru pohlaví (už ne filtr věku)
     df_current = df.copy()
 
     if sex_choice == "Jen dívky":
@@ -144,154 +249,44 @@ def show_lenka_page():
     elif sex_choice == "Jen chlapce":
         df_current = df_current[df_current["SEX"] == 1]
 
-    df_current = df_current[
-        (df_current["AGE"] >= age_min) &
-        (df_current["AGE"] <= age_max)
-    ]
-
-    # Pro grafy pořád pracujeme hlavně s rokem 2018
+    # Pro grafy pořád pracujeme hlavně s rokem 2018, ale vývoj bere všechny roky
     df_current_2018 = df_current[df_current["YEAR"] == 2018].copy()
 
-    # ============================================================
+    # DEFINICE POROVNÁVANÝCH ZEMÍ
+    if selected_country == "All countries":
+        compare_countries = all_countries
+    else:
+        compare_countries = [default_country, selected_country]
+
     # BARVY PRO GRAFY
-    # ============================================================
     color_map = {
         "Czech Republic": DEFAULT_COLOR_CZ,
         selected_country: DEFAULT_COLOR_OTHER
     }
 
-    # ============================================================
-    # 🟣 K P I – podle zvoleného roku (jen KPI)
-    # ============================================================
-    st.subheader("📌 Klíčové metriky")
+    with col_graph1:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
 
-    # dataset pro KPI: podle zvoleného roku nebo všechny roky
-    if selected_year_kpi == "Všechny roky":
-        df_current_year = df_current.copy()    # už má filtr pohlaví + věk
-        df_all_year = df.copy()                # bez věkového filtru
-    else:
-        df_current_year = df_current[df_current["YEAR"] == selected_year_kpi].copy()
-        df_all_year = df[df["YEAR"] == selected_year_kpi].copy()
-
-    # 1) Obezita v ČR
-    cz_over = df_current_year[df_current_year["COUNTRY_NAME"] == "Czech Republic"]["OVERWEIGHT"].mean()
-
-    # 2) Obezita ve vybrané zemi
-    if selected_country != "All countries":
-        country_over = df_current_year[df_current_year["COUNTRY_NAME"] == selected_country]["OVERWEIGHT"].mean()
-    else:
-        country_over = np.nan
-
-    # 3) EU průměr (pouze podle roku a pohlaví, ignoruje věk)
-    df_eu_temp = df_all_year.copy()
-    if sex_choice == "Jen dívky":
-        df_eu_temp = df_eu_temp[df_eu_temp["SEX"] == 2]
-    elif sex_choice == "Jen chlapce":
-        df_eu_temp = df_eu_temp[df_eu_temp["SEX"] == 1]
-    eu_over = df_eu_temp[df_eu_temp["COUNTRY_NAME"].isin(eu_list)]["OVERWEIGHT"].mean()
-
-    # 4) Globální průměr všech zemí (podle roku, bez věku, s filtrem pohlaví)
-    df_all_temp = df_all_year.copy()
-    if sex_choice == "Jen dívky":
-        df_all_temp = df_all_temp[df_all_temp["SEX"] == 2]
-    elif sex_choice == "Jen chlapce":
-        df_all_temp = df_all_temp[df_all_temp["SEX"] == 1]
-    global_over = df_all_temp["OVERWEIGHT"].mean()
-
-    # 5) Počet zemí v datasetu pro zvolený rok (nebo všechny roky)
-    n_countries_total = df_all_year["COUNTRY_NAME"].nunique()
-
-    # 6) Top rizikový faktor (podle filtrů věk+pohlaví+rok) + kde je nejvyšší (jen CZ + vybraná země)
-    df_norm_tmp = df_current_year.copy()
-    for f in factors:
-        maxv = dictionary[f]
-        df_norm_tmp[f] = (maxv + 1 - df_norm_tmp[f]) / maxv if f in reverse_scales else df_norm_tmp[f] / maxv
-
-    corr_tmp = (
-        df_norm_tmp[factors + ["OVERWEIGHT"]]
-        .corr()["OVERWEIGHT"]
-        .drop("OVERWEIGHT")
-        .abs()
-        .sort_values(ascending=False)
-    )
-
-    if not corr_tmp.empty:
-        top_factor_code = corr_tmp.index[0]
-        top_factor_pretty = top_factor_code.replace("_", " ").title()
-
-        # Země, které smí být v KPI (CZ + vybraná země),
-        # aby tam neskákala Turkey, pokud ji sama nevybereš.
-        if selected_country == "All countries":
-            kpi_countries = ["Czech Republic"]
-        else:
-            kpi_countries = ["Czech Republic", selected_country]
-
-        country_factor_mean = (
-            df_norm_tmp[df_norm_tmp["COUNTRY_NAME"].isin(kpi_countries)]
-            .groupby("COUNTRY_NAME")[top_factor_code]
+        df_line = (
+            df_current[df_current["COUNTRY_NAME"].isin(compare_countries)]
+            .groupby(["YEAR", "COUNTRY_NAME"], as_index=False)["OVERWEIGHT"]
             .mean()
-            .dropna()
         )
 
-        if not country_factor_mean.empty:
-            top_factor_country = country_factor_mean.idxmax()
-        else:
-            top_factor_country = "—"
-    else:
-        top_factor_code = None
-        top_factor_pretty = "—"
-        top_factor_country = "—"
-
-    # KPI layout – 2 řady po třech
-    colA, colB, colC = st.columns(3)
-    colD, colE, colF = st.columns(3)
-
-    with colA:
-        st.metric("Obezita v ČR", f"{cz_over:.2f}" if not np.isnan(cz_over) else "—")
-
-    with colB:
-        if selected_country != "All countries":
-            st.metric(f"Obezita – {selected_country}", f"{country_over:.2f}" if not np.isnan(country_over) else "—")
-        else:
-            st.metric("Obezita – druhá země", "—")
-
-    with colC:
-        st.metric("EU průměr", f"{eu_over:.2f}" if not np.isnan(eu_over) else "—")
-
-    with colD:
-        st.metric("Průměr všech zemí", f"{global_over:.2f}" if not np.isnan(global_over) else "—")
-
-    with colE:
-        st.metric("Počet zemí v datasetu", str(n_countries_total))
-
-    with colF:
-        st.metric(
-            "Top rizikový faktor",
-            top_factor_pretty,
-            delta=f"Nejvyšší v: {top_factor_country}"
+        fig_line = px.line(
+            df_line, x="YEAR", y="OVERWEIGHT", color="COUNTRY_NAME",
+            markers=True, color_discrete_map=color_map,
+            title="Vývoj prevalence obezity"
         )
+        fig_line.update_layout(height=450)
+
+        st.plotly_chart(fig_line, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # ============================================================
-    # GRAF 1 — ŠIROKÝ: vývoj obezity
+    # GRAF 2 + 3 — TOP 5 + podle věku
     # ============================================================
-    df_line = (
-        df_current[df_current["COUNTRY_NAME"].isin(compare_countries)]
-        .groupby(["YEAR", "COUNTRY_NAME"], as_index=False)["OVERWEIGHT"]
-        .mean()
-    )
-
-    fig_line = px.line(
-        df_line, x="YEAR", y="OVERWEIGHT", color="COUNTRY_NAME",
-        markers=True, color_discrete_map=color_map,
-        title="Vývoj prevalence obezity"
-    )
-    fig_line.update_layout(height=450)
-
-    st.plotly_chart(fig_line, use_container_width=True)
-
-    # ============================================================
-    # GRAF 2 + 3 — vedle sebe: TOP 5 + podle věku
-    # ============================================================
+    st.subheader("📊 TOP 5 faktorů a overweight podle věku (2018)")
 
     # GRAF 2 — TOP 5
     df_norm = df_current_2018.copy()
@@ -354,9 +349,14 @@ def show_lenka_page():
 
     col_g2, col_g3 = st.columns(2)
     with col_g2:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
         st.plotly_chart(fig_top5, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
     with col_g3:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
         st.plotly_chart(fig_age, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     # ============================================================
     # GRAF 4 — TOP X faktorů (bez TOP 5)
@@ -393,10 +393,12 @@ def show_lenka_page():
     )
     fig_topX.update_layout(height=600, xaxis_tickangle=45)
 
+    st.markdown('<div class="card">', unsafe_allow_html=True)
     st.plotly_chart(fig_topX, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # ============================================================
-    # SPODNÍ GRAFY – IGNORUJÍ FILTR VĚKU
+    # SPODNÍ GRAFY – IGNORUJÍ FILTR VĚKU (jako dřív)
     # ============================================================
     st.subheader("📉 EU porovnání (bez věkového filtru)")
 
@@ -464,13 +466,18 @@ def show_lenka_page():
         mode="lines", showlegend=False, line=dict(color="gray", width=1.7)
     ))
 
-    fig_dumbbell.update_layout(height=750)
+    fig_dumbbell.update_layout(height=750, title="Boys vs Girls")
 
     col4, col5 = st.columns(2)
     with col4:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
         st.plotly_chart(fig_dev, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
     with col5:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
         st.plotly_chart(fig_dumbbell, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ------------------------------------------------------------
