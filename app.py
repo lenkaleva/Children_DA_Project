@@ -4,8 +4,8 @@ import numpy as np
 
 
 # Import stránky Lenka
-from pages.lenka import show_lenka_page
-show_lenka_page()
+#from pages.lenka import show_lenka_page
+#show_lenka_page()
 
 
 # loading data - to be used na jednotlivych pages
