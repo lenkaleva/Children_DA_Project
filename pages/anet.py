@@ -11,22 +11,6 @@ import plotly.express as px
 st.title("Gender Differences in Childhood Overweight")
 st.set_page_config(layout="wide")
 
-# softer style for sliders
-st.markdown(
-    <style>
-    /* bar podél slideru */
-    div[data-baseweb="slider"] > div {
-        background-color: #e0e4ec;
-    }
-    /* kolečko slideru */
-    div[data-baseweb="slider"] [role="slider"] {
-        background-color: #6c8cd5;    /* tlumená modrá */
-        border: 1px solid #6c8cd5;
-    }
-    </style>
-    unsafe_allow_html=True
-)
-
 ###########################################################
 # LOADING DATA
 # already loaded on app.py - using df for convenience
