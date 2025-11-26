@@ -7,7 +7,7 @@ import plotly.express as px
 ###########################################################
 # LOADING DATA
 # already loaded on app.py - using df for convenience
-if 'data' not in st.session_state:
+if 'df' not in st.session_state:
     df = pd.read_csv('data.csv')
     df["COUNTRY_NAME"] = df["COUNTRY_NAME"].replace({
         "Belgium (Flemish)": "Belgium",
