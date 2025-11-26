@@ -931,7 +931,7 @@ with row3_col2:
 row4_col1, row4_col2 = st.columns(2)
 with row4_col1:
     if fig6 is not None:
-        st.plotly_chart(fig6, use_container_width=True, key="fig6")
+        st.plotly_chart(fig6, width='stretch', key="fig6")
     else:
         st.info("Graph 6 not available for current filters.")
 
