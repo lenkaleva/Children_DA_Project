@@ -5,6 +5,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
+
+
 # ------------------------------------------------------------
 # KONSTANTY: škály a faktory
 # ------------------------------------------------------------
@@ -138,6 +140,7 @@ def show_lenka_page():
 
     df.loc[df["BUL_BEEN"] == 999, "BUL_BEEN"] = np.nan
 
+
     # ============================================================
     # KPI – TOP BAR (ENGLISH + ALIASES + VALUES IN %)
     # ============================================================
@@ -152,7 +155,6 @@ def show_lenka_page():
         global_over = df_2018["OVERWEIGHT"].mean()
         n_countries_total = df_2018["COUNTRY_NAME"].nunique()
 
-        # compute the top correlated factor and use ALIAS
         df_norm_kpi = df_2018.copy()
         for f in factors:
             maxv = dictionary[f]
@@ -170,7 +172,6 @@ def show_lenka_page():
             top_factor_pretty = factor_alias.get(top_factor_code, top_factor_code)
         else:
             top_factor_pretty = "—"
-
     # ============================================================
     # KPI BOXES
     # ============================================================
@@ -288,7 +289,7 @@ def show_lenka_page():
             )
         )
 
-        st.plotly_chart(fig_line, width='stretch')
+        st.plotly_chart(fig_line, width='stretch', config={})
 
 
     # ------------------------------------------------------------
@@ -325,7 +326,6 @@ def show_lenka_page():
         value_name="VALUE"
     )
 
-    # ⭐ ALIASY
     df_t5_long["FEATURE"] = df_t5_long["FEATURE"].map(lambda x: factor_alias.get(x, x))
 
     fig_top5 = px.bar(
@@ -357,9 +357,9 @@ def show_lenka_page():
 
     col_g2, col_g3 = st.columns(2)
     with col_g2:
-        st.plotly_chart(fig_top5, width='stretch')
+        st.plotly_chart(fig_top5, width='stretch', config={})
     with col_g3:
-        st.plotly_chart(fig_age, width='stretch')
+        st.plotly_chart(fig_age, width='stretch', config={})
 
 
     # ------------------------------------------------------------
@@ -384,7 +384,6 @@ def show_lenka_page():
         value_name="VALUE"
     )
 
-    # ⭐ ALIASY
     df_tX_long["FEATURE"] = df_tX_long["FEATURE"].map(lambda x: factor_alias.get(x, x))
 
     fig_topX = px.bar(
@@ -396,9 +395,7 @@ def show_lenka_page():
         title=f"TOP {top_n} additional factors (normalized)"
     )
 
-    st.plotly_chart(fig_topX, width='stretch')
-
-
+    st.plotly_chart(fig_topX, width='stretch', config={})
 
     # ------------------------------------------------------------
     # SPODNÍ GRAFY – upravené (menší, stejné, legendy nahoře, vedle sebe)
@@ -434,7 +431,7 @@ def show_lenka_page():
     fig_dev.update_layout(
         height=650,
         margin=dict(l=40, r=40, t=60, b=40),
-        title_x=0.0   # TITULEK DOLEVA
+        title_x=0.0
     )
 
 
@@ -456,31 +453,31 @@ def show_lenka_page():
 
     fig_dumbbell = go.Figure()
 
-    # Girls
     fig_dumbbell.add_trace(go.Scatter(
         x=df_gender_pivot["Girls"], y=df_gender_pivot["COUNTRY_NAME"],
-        mode="markers", name="", 
+        mode="markers", 
+        name="", 
         marker=dict(color="hotpink", size=12)
     ))
 
-    # Boys
     fig_dumbbell.add_trace(go.Scatter(
         x=df_gender_pivot["Boys"], y=df_gender_pivot["COUNTRY_NAME"],
-        mode="markers", name="", 
+        mode="markers", 
+        name="", 
         marker=dict(color="cornflowerblue", size=12)
     ))
 
-    # connecting lines
     fig_dumbbell.add_trace(go.Scatter(
         x=pd.concat([df_gender_pivot["Girls"], df_gender_pivot["Boys"]]),
         y=pd.concat([df_gender_pivot["COUNTRY_NAME"], df_gender_pivot["COUNTRY_NAME"]]),
-        mode="lines", showlegend=False, line=dict(color="gray", width=1.5)
+        mode="lines",
+        showlegend=False,
+        line=dict(color="gray", width=1.5)
     ))
 
-    # Nadpis sladěný s levým grafem
     fig_dumbbell.update_layout(
         title="<b>Difference Between ♀️ Girls and ♂️ Boys</b>",
-        title_x=0.0,   # TITULEK DOLEVA
+        title_x=0.0,
         height=650,
         margin=dict(l=40, r=40, t=60, b=40),
         showlegend=False
@@ -491,15 +488,10 @@ def show_lenka_page():
     col4, col5 = st.columns([1, 1])
 
     with col4:
-<<<<<<< HEAD
-        st.plotly_chart(fig_dev, width='stretch')
-=======
-        st.plotly_chart(fig_dev, use_container_width=True)
+        st.plotly_chart(fig_dev, width='stretch', config={})
 
->>>>>>> b8705aa (kpi update)
     with col5:
-        st.plotly_chart(fig_dumbbell, width='stretch')
-
+        st.plotly_chart(fig_dumbbell, width='stretch', config={})
 
 
 # ------------------------------------------------------------
