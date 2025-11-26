@@ -294,16 +294,28 @@ else:
 
 ##############################################################
 # FILTERS – budou v pravém sloupci vedle Grafu 1
+row1_col1, row1_col2 = st.columns([3, 1])
+with row1_col2:
+    st.subheader("Filters")
 
-# default values (overwritten later in UI)
-selected_country = "All countries"
-min_age, max_age = int(df["AGE"].min()), int(df["AGE"].max())
-age_min, age_max = min_age, max_age
+    # Country filter
+    country_list = sorted(df["COUNTRY_NAME"].unique().tolist())
+    country_options = ["All countries"] + country_list
+    selected_country = st.selectbox(
+        "Select country",
+        options=country_options,
+        index=0
+    )
 
-country_list = sorted(df["COUNTRY_NAME"].unique().tolist())
-
-
-# APPLY FILTERS – už mimo col_filters (aby výsledek byl k dispozici pro všechny grafy/KPIs)
+    # Age filter
+    min_age, max_age = int(df["AGE"].min()), int(df["AGE"].max())
+    age_min, age_max = st.slider(
+        "Select age",
+        min_value=min_age,
+        max_value=max_age,
+        value=(min_age, max_age),
+        step=1
+    )
 
 df_filtered = df.copy()
 
@@ -316,40 +328,40 @@ df_filtered = df_filtered[
 ]
 
 
+# default values (overwritten later in UI)
+selected_country = "All countries"
+min_age, max_age = int(df["AGE"].min()), int(df["AGE"].max())
+age_min, age_max = min_age, max_age
+
+country_list = sorted(df["COUNTRY_NAME"].unique().tolist())
+
+
 #######################################################
 # DEFINING FACTORS, SCALES
 
 # columns odpovidaji top cca 20 z radom forest modelu 
 list_columns = [
-    "FRUITS", "SOFT_DRINKS", "SWEETS", "VEGETABLES", "FRIEND_TALK",
-    "TIME_EXE", "PHYS_ACT_60", "DRUNK_30",
-    "FAMILY_MEALS_TOGETHER", "BREAKFAST_WEEKDAYS", "BREAKFAST_WEEKEND",
-    "TOOTH_BRUSHING", "STUD_TOGETHER", "BUL_OTHERS", "BUL_BEEN",
-    "FIGHT_YEAR", "INJURED_YEAR", "HEADACHE", "FEEL_LOW",
-    "NERVOUS", "SLEEP_DIF", "DIZZY",
-    "TALK_MOTHER", "TALK_FATHER",
-    "LIKE_SCHOOL", "SCHOOL_PRESSURE", "COMPUTER_NO"
+    "FRUITS", "SOFT_DRINKS", "SWEETS", "VEGETABLES", "FRIEND_TALK", "TIME_EXE", "PHYS_ACT_60", "DRUNK_30", 
+    "FAMILY_MEALS_TOGETHER", "BREAKFAST_WEEKDAYS", "BREAKFAST_WEEKEND", "TOOTH_BRUSHING", "STUD_TOGETHER", 
+    "BUL_OTHERS", "BUL_BEEN", "FIGHT_YEAR", "INJURED_YEAR", "HEADACHE", "FEEL_LOW", "NERVOUS", "SLEEP_DIF", "DIZZY",
+    "TALK_MOTHER", "TALK_FATHER", "LIKE_SCHOOL", "SCHOOL_PRESSURE", "COMPUTER_NO"
 ]
     
 dict_scales = {
-    # Symptomy (1=bad → 5=good)
     "HEADACHE": 5,
     "NERVOUS": 5,
     "SLEEP_DIF": 5,
     "FEEL_LOW": 5,
     "STOMACHACHE": 5,
     "DIZZY": 5,
-    # Komunikace s rodiči (1=good → 5=bad)
     "TALK_FATHER": 5,
     "TALK_MOTHER": 5,
     "FAMILY_MEALS_TOGETHER": 5,
-    # Životní návyky (1=good → max=bad)
     "TIME_EXE": 7,
     "TOOTH_BRUSHING": 5,
     "HEALTH": 4,
     "LIKE_SCHOOL": 4,
     "STUD_TOGETHER": 5,
-    # Strava & životní styl
     "FRUITS": 7,
     "VEGETABLES": 7,
     "FRIEND_TALK": 7,
@@ -357,7 +369,6 @@ dict_scales = {
     "BREAKFAST_WEEKEND": 3,
     "PHYS_ACT_60": 7,
     "LIFESAT": 10,
-    # Rizikové chování
     "SWEETS": 7,
     "SOFT_DRINKS": 7,
     "DRUNK_30": 5,
@@ -397,7 +408,7 @@ factor_alias = {
     "PHYS_ACT_60": "Below 60 min/day",
     "DRUNK_30": "Alcohol",
     "FAMILY_MEALS_TOGETHER": "No family meals",
-    "BREAKFAST_WEEKDAYS": "No breakfast (week)",
+    "BREAKFAST_WEEKDAYS": "No breakfast (weekdays)",
     "BREAKFAST_WEEKEND": "No breakfast (weekend)",
     "TOOTH_BRUSHING": "Poor teeth care",
     "STUD_TOGETHER": "No friend time",
@@ -456,7 +467,6 @@ if not df_filtered.empty:
         df_trend, 
         y="OVERWEIGHT", 
         x="YEAR", 
-        title="Overweight Trend by Gender (2002-2018)", 
         color="SEX_LABEL", 
         color_discrete_map=colors
     )
@@ -476,82 +486,12 @@ if not df_filtered.empty:
     margin=dict(l=80, r=40, t=60, b=60)  
     )
 
-
-
-#######################################################
-# GRAPH 5
-# Overweight vs Non-overweight - risk factors via average difference
-# DETAIL_YEAR, all genders together
-
-df_norm_detail = prep_df_normalized_for_year(df_filtered, DETAIL_YEAR)
-
-if not df_norm_detail.empty:
-    # bez gender filtru – bereme všechny děti v aktuálních filtrech
-    df_fig5 = df_norm_detail.copy()
-
-    df_ow_all  = df_fig5[df_fig5["OVERWEIGHT"] == 1]
-    df_non_all = df_fig5[df_fig5["OVERWEIGHT"] == 0]
-
-    if not df_ow_all.empty and not df_non_all.empty:
-        ow_means  = df_ow_all[list_columns].mean()
-        non_means = df_non_all[list_columns].mean()
-        diff = ow_means - non_means
-
-        df_diff = (
-            diff.rename("DIFFERENCE")
-                .reset_index()
-                .rename(columns={"index": "FACTOR"})
-        )
-        df_diff["DIFFERENCE"] = df_diff["DIFFERENCE"].fillna(0.0)
-        df_diff["ABS_DIFF"] = df_diff["DIFFERENCE"].abs()
-
-        # seřadit podle velikosti rozdílu (největší rozdíl nahoře)
-        df_diff = df_diff.sort_values("ABS_DIFF", ascending=False)
-
-        df_diff["FACTOR_LABEL"] = df_diff["FACTOR"].map(factor_alias)
-
-        df_diff["SIDE"] = np.where(
-            df_diff["DIFFERENCE"] > 0,
-            "Overweight",
-            "Non-overweight"
-        )
-
-        color_ow = {
-            "Overweight": "orangered",
-            "Non-overweight": "seagreen"
-        }
-
-        fig5 = px.bar(
-            df_diff,
-            x="DIFFERENCE",
-            y="FACTOR_LABEL",
-            orientation="h",
-            color="SIDE",
-            color_discrete_map=color_ow,
-            category_orders={"FACTOR_LABEL": df_diff["FACTOR_LABEL"].tolist()},
-            title=f"Overweight vs Non-overweight Differences ({DETAIL_YEAR})",
-        )
-
-        fig5.update_layout(
-            xaxis_title="Overweight - Non-Overweight (difference)",
-            yaxis_title="Risk factor",
-            legend_title="Group with higher risk",
-            xaxis=dict(
-                tickmode="linear",
-                tick0=0,
-                dtick=0.05,
-                showgrid=True,
-                gridcolor="lightgray",
-                gridwidth=1,
-                zeroline=False
-            ),
-            height=450,
-            margin=dict(l=140, r=40, t=60, b=60),
-            title=dict(
-                text=f"Overweight vs Non-overweight Differences ({DETAIL_YEAR})",
-                font=dict(size=24)
-            )
-        )
+#Layout graph1
+with row1_col1:
+    if fig1 is not None:
+        st.plotly_chart(fig1, use_container_width=True, key="fig1")
+    else:
+        st.info("Graph 1 not available for current filters.")
 
 
 
@@ -559,6 +499,18 @@ if not df_norm_detail.empty:
 # GRAPH 2 – Top 5 faktorů (podle korelace), rozdíl Boys vs Girls (OW only, 2018)
 # KORELACE faktorů s OVERWEIGHT (2018, normované df_2018_normalized)
 # prep for Graph 3 (top 5)
+df_norm_detail = prep_df_normalized_for_year(df_filtered, DETAIL_YEAR)
+
+df_filtered = df.copy()
+
+if selected_country != "All countries":
+    df_filtered = df_filtered[df_filtered["COUNTRY_NAME"] == selected_country]
+
+df_filtered = df_filtered[
+    (df_filtered["AGE"] >= age_min) &
+    (df_filtered["AGE"] <= age_max)
+]
+
 
 if not df_norm_detail.empty:
     corr_series = (
@@ -766,49 +718,82 @@ if not df_age_base.empty:
         margin=dict(l=80, r=40, t=60, b=60)
     )
 
+#######################################################
+# GRAPH 5
+# Overweight vs Non-overweight - risk factors via average difference
+# DETAIL_YEAR, all genders together
+
+
+if not df_norm_detail.empty:
+    # bez gender filtru – bereme všechny děti v aktuálních filtrech
+    df_fig5 = df_norm_detail.copy()
+
+    df_ow_all  = df_fig5[df_fig5["OVERWEIGHT"] == 1]
+    df_non_all = df_fig5[df_fig5["OVERWEIGHT"] == 0]
+
+    if not df_ow_all.empty and not df_non_all.empty:
+        ow_means  = df_ow_all[list_columns].mean()
+        non_means = df_non_all[list_columns].mean()
+        diff = ow_means - non_means
+
+        df_diff = (
+            diff.rename("DIFFERENCE")
+                .reset_index()
+                .rename(columns={"index": "FACTOR"})
+        )
+        df_diff["DIFFERENCE"] = df_diff["DIFFERENCE"].fillna(0.0)
+        df_diff["ABS_DIFF"] = df_diff["DIFFERENCE"].abs()
+
+        # seřadit podle velikosti rozdílu (největší rozdíl nahoře)
+        df_diff = df_diff.sort_values("ABS_DIFF", ascending=False)
+
+        df_diff["FACTOR_LABEL"] = df_diff["FACTOR"].map(factor_alias)
+
+        df_diff["SIDE"] = np.where(
+            df_diff["DIFFERENCE"] > 0,
+            "Overweight",
+            "Non-overweight"
+        )
+
+        color_ow = {
+            "Overweight": "orangered",
+            "Non-overweight": "seagreen"
+        }
+
+        fig5 = px.bar(
+            df_diff,
+            x="DIFFERENCE",
+            y="FACTOR_LABEL",
+            orientation="h",
+            color="SIDE",
+            color_discrete_map=color_ow,
+            category_orders={"FACTOR_LABEL": df_diff["FACTOR_LABEL"].tolist()},
+            title=f"Overweight vs Non-overweight Differences ({DETAIL_YEAR})",
+        )
+
+        fig5.update_layout(
+            xaxis_title="Overweight - Non-Overweight (difference)",
+            yaxis_title="Risk factor",
+            legend_title="Group with higher risk",
+            xaxis=dict(
+                tickmode="linear",
+                tick0=0,
+                dtick=0.05,
+                showgrid=True,
+                gridcolor="lightgray",
+                gridwidth=1,
+                zeroline=False
+            ),
+            height=450,
+            margin=dict(l=140, r=40, t=60, b=60),
+            title=dict(
+                text=f"Overweight vs Non-overweight Differences ({DETAIL_YEAR})",
+                font=dict(size=24)
+            )
+        )
 
 #####################################################
 # DASHBOARD LAYOUT
-
-row1_col1, row1_col2 = st.columns(2)
-with row1_col1:
-    if fig1 is not None:
-         st.plotly_chart(fig1, use_container_width=True, key="fig1")
-    else:
-        st.info("Graph 1 not available for current filters.")
-with row1_col2:
-    st.subheader("Filters")
-
-    # Country filter
-    country_list = sorted(df["COUNTRY_NAME"].unique().tolist())
-    country_options = ["All countries"] + country_list
-    selected_country = st.selectbox(
-        "Select country",
-        options=country_options,
-        index=0
-    )
-
-    # Age filter
-    min_age, max_age = int(df["AGE"].min()), int(df["AGE"].max())
-    age_min, age_max = st.slider(
-        "Select age",
-        min_value=min_age,
-        max_value=max_age,
-        value=(min_age, max_age),
-        step=1
-    )
-
-df_filtered = df.copy()
-
-if selected_country != "All countries":
-    df_filtered = df_filtered[df_filtered["COUNTRY_NAME"] == selected_country]
-
-df_filtered = df_filtered[
-    (df_filtered["AGE"] >= age_min) &
-    (df_filtered["AGE"] <= age_max)
-]
-
-
 
 row2_col1, row2_col2 = st.columns(2)
 with row2_col1:
@@ -827,7 +812,7 @@ with row2_col2:
 row3_col1, row3_col2 = st.columns(2)
 with row3_col1:
     if fig4 is not None:
-        st.plotly_chart(fig5, use_container_width=True, key="fig4")
+        st.plotly_chart(fig4, use_container_width=True, key="fig4")
     else:
         st.info("Graph 4 not available for current filters.")
 with row3_col2:
