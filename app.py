@@ -10,14 +10,14 @@ import numpy as np
 
 # loading data - to be used na jednotlivych pages
 # oprava 2 Belgium na jednotny stat
-if 'data' not in st.session_state:
-    st.session_state.data = pd.read_csv('data.csv')
+if 'df' not in st.session_state:
+    st.session_state.df = pd.read_csv('data.csv')
    
-df = st.session_state.data
+df = st.session_state.df
 
 
-country_list = st.session_state.data['COUNTRY_NAME'].unique().tolist()
-years_list = st.session_state.data['YEAR'].unique().tolist()
+country_list = st.session_state.df['COUNTRY_NAME'].unique().tolist()
+years_list = st.session_state.df['YEAR'].unique().tolist()
 
 # ------------------------------------------------------------
 # SIDEBAR MENU
