@@ -36,9 +36,39 @@ reverse_scales = {
     "HEADACHE", "NERVOUS", "SLEEP_DIF", "DIZZY", "FEEL_LOW",
     "BREAKFAST_WEEKDAYS", "BREAKFAST_WEEKEND",
     "FRIEND_TALK", "FRUITS", "PHYS_ACT_60", "VEGETABLES"
+} 
+
+factor_alias = {
+    "FRUITS": "No fruit",
+    "SOFT_DRINKS": "Soft drinks",
+    "SWEETS": "Sweets",
+    "VEGETABLES": "No vegetables",
+    "FRIEND_TALK": "No friends talk",
+    "TIME_EXE": "No exercise",
+    "PHYS_ACT_60": "Below 60 min/day",
+    "DRUNK_30": "Alcohol",
+    "FAMILY_MEALS_TOGETHER": "No family meals",
+    "BREAKFAST_WEEKDAYS": "No breakfast (weekdays)",
+    "BREAKFAST_WEEKEND": "No breakfast (weekend)",
+    "TOOTH_BRUSHING": "Poor teeth care",
+    "STUD_TOGETHER": "No friend time",
+    "BUL_OTHERS": "Bullies others",
+    "BUL_BEEN": "Been bullied",
+    "FIGHT_YEAR": "Often fights",
+    "INJURED_YEAR": "Often injured",
+    "HEADACHE": "Frequent headaches",
+    "FEEL_LOW": "Feels low",
+    "NERVOUS": "Feels nervous",
+    "SLEEP_DIF": "Sleep problems",
+    "DIZZY": "Feels dizzy",
+    "TALK_MOTHER": "No mom talk",
+    "TALK_FATHER": "No dad talk",
+    "LIKE_SCHOOL": "Dislikes school",
+    "SCHOOL_PRESSURE": "High school pressure",
+    "COMPUTER_NO": "Computer/Gaming use"
 }
 
-# sjednocené barvy
+
 DEFAULT_COLOR_CZ = "#1f77b4"
 DEFAULT_COLOR_OTHER = "#ff7f0e"
 
@@ -58,79 +88,23 @@ def show_lenka_page():
 
     st.set_page_config(page_title="Analýza dětské obezity", layout="wide")
 
-    # === GLOBÁLNÍ STYL – šedé pozadí + KPI / graf karty ===
     st.markdown("""
     <style>
-    .stApp {
-        background-color: #f6f8fb;
-    }
-
-    /* KPI wrapper – mezera pod KPI */
-    .kpi-wrapper {
-        margin-bottom: 40px;
-    }
-
-    /* jednotlivé KPI boxy */
+    .stApp { background-color: #f6f8fb; }
+    .kpi-wrapper { margin-bottom: 40px; }
     .kpi-box {
-        background: #ffffff;
-        padding:16px;
-        border-radius:16px;
-        border:1px solid #d8e2f5;
-        box-shadow:0 2px 6px rgba(0,0,0,0.12);
+        background: #ffffff; padding:16px; border-radius:16px;
+        border:1px solid #d8e2f5; box-shadow:0 2px 6px rgba(0,0,0,0.12);
         text-align:center;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
-    .kpi-box:hover {
-        transform: scale(1.02);
-        box-shadow: 0 6px 18px rgba(15,23,42,0.18);
-    }
-    .kpi-label {
-        font-size: 0.9rem;
-        font-weight: 500;
-        color: #4b5563;
-        margin-bottom: 4px;
-    }
-    .kpi-value {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: #111827;
-    }
-
-    /* Plotly grafy jako karty – opraveno */
     div[data-testid="stPlotlyChart"] {
         background-color: #ffffff !important;
         padding: 12px !important;
         border-radius: 16px !important;
         box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
         margin-bottom: 16px !important;
-        overflow: hidden !important;        /* 💛 zabrání přetékání */
-        max-width: 100% !important;         /* 💛 aby to nepřesahovalo sloupec */
-    }
-
-
-    /* SLIDER barva */
-    .stSlider > div > div > div > div {
-        background-color: #4c5d73 !important;
-    }
-    .stSlider div[role="slider"] {
-        background-color: #334155 !important;
-        border: 2px solid #cbd5f5 !important;
-    }
-    div[data-baseweb="slider"] span {
-        color: #475569 !important;
-        font-weight: 500;
-    }
-    div[data-baseweb="slider"] div {
-        color: #475569 !important;
-    }
-    div[data-baseweb="slider"] * {
-        color: #475569 !important;
-    }
-    span[style*="rgb(246, 51, 102)"],
-    span[style*="#f63366"],
-    div[style*="rgb(246, 51, 102)"],
-    div[style*="#f63366"] {
-        color: #475569 !important;
+        overflow: hidden !important;
+        max-width: 100% !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -143,18 +117,14 @@ def show_lenka_page():
     if "df" not in st.session_state:
         df = pd.read_csv("data.csv")
 
-        # Sjednocení Belgie
         df["COUNTRY_NAME"] = df["COUNTRY_NAME"].replace({
             "Belgium (Flemish)": "Belgium",
             "Belgium (French)": "Belgium"
         })
 
-        # Sjednocení UK regionů na "United Kingdom"
         uk_map = {
-            "England": "United Kingdom",
-            "Scotland": "United Kingdom",
-            "Wales": "United Kingdom",
-            "Northern Ireland": "United Kingdom",
+            "England": "United Kingdom", "Scotland": "United Kingdom",
+            "Wales": "United Kingdom", "Northern Ireland": "United Kingdom",
             "Great Britain": "United Kingdom",
             "UK (England)": "United Kingdom",
             "UK (Wales)": "United Kingdom",
@@ -169,7 +139,7 @@ def show_lenka_page():
     df.loc[df["BUL_BEEN"] == 999, "BUL_BEEN"] = np.nan
 
     # ============================================================
-    # KPI – NAHOŘE, 5 BOXŮ, vždy rok 2018 (bez filtrů)
+    # KPI – TOP BAR (ENGLISH + ALIASES + VALUES IN %)
     # ============================================================
     df_2018 = df[df["YEAR"] == 2018].copy()
     if df_2018.empty:
@@ -182,7 +152,7 @@ def show_lenka_page():
         global_over = df_2018["OVERWEIGHT"].mean()
         n_countries_total = df_2018["COUNTRY_NAME"].nunique()
 
-        # top rizikový faktor global (2018)
+        # compute the top correlated factor and use ALIAS
         df_norm_kpi = df_2018.copy()
         for f in factors:
             maxv = dictionary[f]
@@ -197,42 +167,47 @@ def show_lenka_page():
         )
         if not corr_kpi.empty:
             top_factor_code = corr_kpi.index[0]
-            top_factor_pretty = top_factor_code.replace("_", " ").title()
+            top_factor_pretty = factor_alias.get(top_factor_code, top_factor_code)
         else:
             top_factor_pretty = "—"
 
+    # ============================================================
+    # KPI BOXES
+    # ============================================================
     st.markdown('<div class="kpi-wrapper">', unsafe_allow_html=True)
     k1, k2, k3, k4, k5 = st.columns(5)
 
     with k1:
-        val = f"{cz_over:.2f}" if not np.isnan(cz_over) else "—"
+        val = f"{cz_over * 100:.1f}%" if not np.isnan(cz_over) else "—"
         st.markdown(f"""
         <div class="kpi-box">
             <div class="kpi-label">
-                <img src="https://flagcdn.com/w20/cz.png" style="height:18px; vertical-align:middle; margin-right:6px;">
-                Obezita v ČR
+                <img src="https://flagcdn.com/w20/cz.png"
+                    style="height:18px; vertical-align:middle; margin-right:6px;">
+                Obesity in Czechia
             </div>
             <div class="kpi-value">{val}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with k2:
-        val = f"{eu_over:.2f}" if not np.isnan(eu_over) else "—"
+        val = f"{eu_over * 100:.1f}%" if not np.isnan(eu_over) else "—"
         st.markdown(f"""
         <div class="kpi-box">
             <div class="kpi-label">
-                <img src="https://flagcdn.com/w20/eu.png" style="height:18px; vertical-align:middle; margin-right:6px;">
-                EU průměr
+                <img src="https://flagcdn.com/w20/eu.png"
+                    style="height:18px; vertical-align:middle; margin-right:6px;">
+                EU Average
             </div>
             <div class="kpi-value">{val}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with k3:
-        val = f"{global_over:.2f}" if not np.isnan(global_over) else "—"
+        val = f"{global_over * 100:.1f}%" if not np.isnan(global_over) else "—"
         st.markdown(f"""
         <div class="kpi-box">
-            <div class="kpi-label">🌍 Globální průměr</div>
+            <div class="kpi-label">🌍 Global Average</div>
             <div class="kpi-value">{val}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -240,7 +215,7 @@ def show_lenka_page():
     with k4:
         st.markdown(f"""
         <div class="kpi-box">
-            <div class="kpi-label">🌐 Počet zemí (2018)</div>
+            <div class="kpi-label">🌐 Number of Countries (2018)</div>
             <div class="kpi-value">{n_countries_total}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -248,59 +223,45 @@ def show_lenka_page():
     with k5:
         st.markdown(f"""
         <div class="kpi-box">
-            <div class="kpi-label">🔥 Top rizikový faktor</div>
+            <div class="kpi-label">🔥 Top Risk Factor</div>
             <div class="kpi-value">{top_factor_pretty}</div>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ============================================================
-    # 1. GRAF + FILTRY (VPRAVO) – TREND 2002–2018
-    # ============================================================
-    st.subheader("")
 
+    # ------------------------------------------------------------
+    # GRAF 1 TREND
+    # ------------------------------------------------------------
     row1_col1, row1_col2 = st.columns([3, 1])
-
     default_country = "Czech Republic"
     all_countries = sorted(df["COUNTRY_NAME"].unique())
     options = ["All countries"] + all_countries
 
     with row1_col2:
         st.subheader("Filters")
-
         selected_country = st.selectbox("Select country:", options, index=0)
+        sex_choice = st.radio("Gender:", ["Both", "Girls", "Boys"], horizontal=True)
 
-        sex_choice = st.radio(
-            "Gender:",
-            ["Both", "Girls", "Boys"],
-            horizontal=True
-        )
-
-    # základní filtr dle pohlaví, bez věku
     df_current = df.copy()
-
     if sex_choice == "Girls":
         df_current = df_current[df_current["SEX"] == 2]
     elif sex_choice == "Boys":
         df_current = df_current[df_current["SEX"] == 1]
 
-    # DF pro roky 2002–2018 pro první graf
     df_trend = df_current[(df_current["YEAR"] >= 2002) & (df_current["YEAR"] <= 2018)].copy()
 
-    # DEFINICE POROVNÁVANÝCH ZEMÍ
     if selected_country == "All countries":
         compare_countries = all_countries
     else:
         compare_countries = [default_country, selected_country]
 
-    # BARVY PRO GRAFY
     color_map = {
         "Czech Republic": DEFAULT_COLOR_CZ,
         selected_country: DEFAULT_COLOR_OTHER
     }
 
-    # GRAF 1 – trend obezity
     df_line = (
         df_trend[df_trend["COUNTRY_NAME"].isin(compare_countries)]
         .groupby(["YEAR", "COUNTRY_NAME"], as_index=False)["OVERWEIGHT"]
@@ -309,15 +270,11 @@ def show_lenka_page():
 
     with row1_col1:
         fig_line = px.line(
-            df_line,
-            x="YEAR",
-            y="OVERWEIGHT",
-            color="COUNTRY_NAME",
-            markers=True,
+            df_line, x="YEAR", y="OVERWEIGHT",
+            color="COUNTRY_NAME", markers=True,
             color_discrete_map=color_map,
             title="Trend of Childhood Overweight (2002–2018)"
         )
-
         fig_line.update_layout(
             height=450,
             autosize=True,
@@ -334,15 +291,11 @@ def show_lenka_page():
         st.plotly_chart(fig_line, width='stretch')
 
 
-    # pro další grafy budeme pracovat hlavně s rokem 2018
+    # ------------------------------------------------------------
+    # GRAF 2 – TOP 5 (aliasy doplněny)
+    # ------------------------------------------------------------
     df_current_2018 = df_current[df_current["YEAR"] == 2018].copy()
 
-    # ============================================================
-    # GRAF 2 + 3 — TOP 5 + podle věku
-    # ============================================================
-    st.subheader("")
-
-    # GRAF 2 — TOP 5
     df_norm = df_current_2018.copy()
     for f in factors:
         maxv = dictionary[f]
@@ -372,18 +325,21 @@ def show_lenka_page():
         value_name="VALUE"
     )
 
+    # ⭐ ALIASY
+    df_t5_long["FEATURE"] = df_t5_long["FEATURE"].map(lambda x: factor_alias.get(x, x))
+
     fig_top5 = px.bar(
         df_t5_long,
-        x="FEATURE",
-        y="VALUE",
+        x="FEATURE", y="VALUE",
         color="COUNTRY_NAME",
         barmode="group",
         color_discrete_map=color_map,
-        title="TOP 5 faktorů souvisejících s obezitou (normalizováno)"
+        title="TOP 5 factors associated with obesity"
     )
-    fig_top5.update_layout(height=450)
 
-    # GRAF 3 — Overweight podle věku
+    # ------------------------------------------------------------
+    # GRAF 3 – Overweight podle věku
+    # ------------------------------------------------------------
     df_age_plot = (
         df_current[df_current["COUNTRY_NAME"].isin(compare_countries)]
         .groupby(["AGE", "COUNTRY_NAME"], as_index=False)["OVERWEIGHT"]
@@ -392,14 +348,12 @@ def show_lenka_page():
 
     fig_age = px.line(
         df_age_plot,
-        x="AGE",
-        y="OVERWEIGHT",
+        x="AGE", y="OVERWEIGHT",
         color="COUNTRY_NAME",
         markers=True,
         color_discrete_map=color_map,
-        title="Overweight podle věku"
+        title="Overweight by Age"
     )
-    fig_age.update_layout(height=450)
 
     col_g2, col_g3 = st.columns(2)
     with col_g2:
@@ -407,12 +361,11 @@ def show_lenka_page():
     with col_g3:
         st.plotly_chart(fig_age, width='stretch')
 
-    # ============================================================
-    # GRAF 4 — TOP X faktorů (bez TOP 5)
-    # ============================================================
-    st.subheader("")
 
-    top_n = st.slider("Počet faktorů:", 5, 20, 15)
+    # ------------------------------------------------------------
+    # GRAF 4 – TOP X (aliasy doplněny)
+    # ------------------------------------------------------------
+    top_n = st.slider("Number of factors:", 5, 20, 15)
 
     remaining = corr_vals.index.tolist()[5:]
     topX = remaining[:top_n]
@@ -431,28 +384,26 @@ def show_lenka_page():
         value_name="VALUE"
     )
 
+    # ⭐ ALIASY
+    df_tX_long["FEATURE"] = df_tX_long["FEATURE"].map(lambda x: factor_alias.get(x, x))
+
     fig_topX = px.bar(
         df_tX_long,
-        x="FEATURE",
-        y="VALUE",
+        x="FEATURE", y="VALUE",
         color="COUNTRY_NAME",
         barmode="group",
         color_discrete_map=color_map,
-        title=f"TOP {top_n} dalších faktorů (normalizováno)"
+        title=f"TOP {top_n} additional factors (normalized)"
     )
-    fig_topX.update_layout(height=600, xaxis_tickangle=45)
 
     st.plotly_chart(fig_topX, width='stretch')
 
-    # ============================================================
-    # SPODNÍ GRAFY – IGNORUJÍ FILTR VĚKU (ale respektují pohlaví)
-    # ============================================================
-    st.subheader("")
 
-    # GRAF 5 — EU deviation
+
+    # ------------------------------------------------------------
+    # SPODNÍ GRAFY – upravené (menší, stejné, legendy nahoře, vedle sebe)
+    # ------------------------------------------------------------
     df_eu_2018 = df[df["YEAR"] == 2018].copy()
-
-    # aplikace filtru pohlaví i pro EU graf
     if sex_choice == "Girls":
         df_eu_2018 = df_eu_2018[df_eu_2018["SEX"] == 2]
     elif sex_choice == "Boys":
@@ -468,19 +419,26 @@ def show_lenka_page():
     df_dev["DEVIATION"] = df_dev["OVERWEIGHT"] - eu_avg
     df_dev = df_dev.sort_values("DEVIATION")
 
+    # ---------------- GRAF 1 (EU deviation) ----------------
     fig_dev = px.bar(
         df_dev,
-        x="DEVIATION",
-        y="COUNTRY_NAME",
+        x="DEVIATION", y="COUNTRY_NAME",
         orientation="h",
         color="DEVIATION",
         color_continuous_scale="RdBu_r",
-        title="Odchylka od EU průměru (2018)"
+        title="Deviation from EU Average (2018)",
     )
-    fig_dev.add_vline(x=0)
-    fig_dev.update_layout(height=750)
 
-    # GRAF 6 — Boys vs Girls (gender rozdíly v EU)
+    fig_dev.add_vline(x=0)
+
+    fig_dev.update_layout(
+        height=650,
+        margin=dict(l=40, r=40, t=60, b=40),
+        title_x=0.0   # TITULEK DOLEVA
+    )
+
+
+    # ---------------- GRAF 2 (dumbbell) ----------------
     df_gender = df[df["YEAR"] == 2018].copy()
     df_gender = df_gender[df_gender["COUNTRY_NAME"].isin(eu_list)]
     df_gender["SEX_LABEL"] = df_gender["SEX"].map({1: "Boys", 2: "Girls"})
@@ -498,33 +456,53 @@ def show_lenka_page():
 
     fig_dumbbell = go.Figure()
 
+    # Girls
     fig_dumbbell.add_trace(go.Scatter(
         x=df_gender_pivot["Girls"], y=df_gender_pivot["COUNTRY_NAME"],
-        mode="markers", name="Girls", marker=dict(color="hotpink", size=12)
+        mode="markers", name="", 
+        marker=dict(color="hotpink", size=12)
     ))
 
+    # Boys
     fig_dumbbell.add_trace(go.Scatter(
         x=df_gender_pivot["Boys"], y=df_gender_pivot["COUNTRY_NAME"],
-        mode="markers", name="Boys", marker=dict(color="cornflowerblue", size=12)
+        mode="markers", name="", 
+        marker=dict(color="cornflowerblue", size=12)
     ))
 
+    # connecting lines
     fig_dumbbell.add_trace(go.Scatter(
         x=pd.concat([df_gender_pivot["Girls"], df_gender_pivot["Boys"]]),
         y=pd.concat([df_gender_pivot["COUNTRY_NAME"], df_gender_pivot["COUNTRY_NAME"]]),
-        mode="lines", showlegend=False, line=dict(color="gray", width=1.7)
+        mode="lines", showlegend=False, line=dict(color="gray", width=1.5)
     ))
 
-    fig_dumbbell.update_layout(height=750, title="Boys vs Girls")
+    # Nadpis sladěný s levým grafem
+    fig_dumbbell.update_layout(
+        title="<b>Difference Between ♀️ Girls and ♂️ Boys</b>",
+        title_x=0.0,   # TITULEK DOLEVA
+        height=650,
+        margin=dict(l=40, r=40, t=60, b=40),
+        showlegend=False
+    )
 
-    col4, col5 = st.columns(2)
+
+    # ---------------- vykreslení – bez velké mezery ----------------
+    col4, col5 = st.columns([1, 1])
+
     with col4:
+<<<<<<< HEAD
         st.plotly_chart(fig_dev, width='stretch')
+=======
+        st.plotly_chart(fig_dev, use_container_width=True)
+
+>>>>>>> b8705aa (kpi update)
     with col5:
         st.plotly_chart(fig_dumbbell, width='stretch')
+
 
 
 # ------------------------------------------------------------
 # RUN
 # ------------------------------------------------------------
 show_lenka_page()
-
