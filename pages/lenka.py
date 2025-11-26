@@ -331,7 +331,7 @@ def show_lenka_page():
             )
         )
 
-        st.plotly_chart(fig_line, use_container_width=True)
+        st.plotly_chart(fig_line, width='stretch')
 
 
     # pro další grafy budeme pracovat hlavně s rokem 2018
@@ -403,9 +403,9 @@ def show_lenka_page():
 
     col_g2, col_g3 = st.columns(2)
     with col_g2:
-        st.plotly_chart(fig_top5, use_container_width=True)
+        st.plotly_chart(fig_top5, width='stretch')
     with col_g3:
-        st.plotly_chart(fig_age, use_container_width=True)
+        st.plotly_chart(fig_age, width='stretch')
 
     # ============================================================
     # GRAF 4 — TOP X faktorů (bez TOP 5)
@@ -442,7 +442,7 @@ def show_lenka_page():
     )
     fig_topX.update_layout(height=600, xaxis_tickangle=45)
 
-    st.plotly_chart(fig_topX, use_container_width=True)
+    st.plotly_chart(fig_topX, width='stretch')
 
     # ============================================================
     # SPODNÍ GRAFY – IGNORUJÍ FILTR VĚKU (ale respektují pohlaví)
@@ -518,9 +518,9 @@ def show_lenka_page():
 
     col4, col5 = st.columns(2)
     with col4:
-        st.plotly_chart(fig_dev, use_container_width=True)
+        st.plotly_chart(fig_dev, width='stretch')
     with col5:
-        st.plotly_chart(fig_dumbbell, use_container_width=True)
+        st.plotly_chart(fig_dumbbell, width='stretch')
 
 
 # ------------------------------------------------------------

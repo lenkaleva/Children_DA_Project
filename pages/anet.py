@@ -489,7 +489,7 @@ if not df_filtered.empty:
 #Layout graph1
 with row1_col1:
     if fig1 is not None:
-        st.plotly_chart(fig1, use_container_width=True, key="fig1")
+        st.plotly_chart(fig1, width='stretch' , key="fig1")
     else:
         st.info("Graph 1 not available for current filters.")
 
@@ -798,12 +798,12 @@ if not df_norm_detail.empty:
 row2_col1, row2_col2 = st.columns(2)
 with row2_col1:
     if fig2 is not None:
-        st.plotly_chart(fig2, use_container_width=True, key="fig2")
+        st.plotly_chart(fig2, width='stretch', key="fig2")
     else:
         st.info("Graph 2 not available for current filters.")
 with row2_col2:
     if fig3 is not None:
-        st.plotly_chart(fig3, use_container_width=True, key="fig3")
+        st.plotly_chart(fig3, width='stretch', key="fig3")
     else:
         st.info("Graph 3 not available for current filters.")
 
@@ -812,12 +812,12 @@ with row2_col2:
 row3_col1, row3_col2 = st.columns(2)
 with row3_col1:
     if fig4 is not None:
-        st.plotly_chart(fig4, use_container_width=True, key="fig4")
+        st.plotly_chart(fig4, width='stretch', key="fig4")
     else:
         st.info("Graph 4 not available for current filters.")
 with row3_col2:
     if fig5 is not None:
-        st.plotly_chart(fig5, use_container_width=True, key="fig5")
+        st.plotly_chart(fig5, width='stretch', key="fig5")
     else:
         st.info("Graph 5 not available for current filters.")
 
