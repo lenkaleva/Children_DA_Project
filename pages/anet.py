@@ -4,6 +4,8 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
+st.set_page_config(layout="wide")
+st.title("Gender Differences in Childhood Overweight")
 
 ###########################################################
 # LOADING DATA
@@ -36,21 +38,20 @@ df.loc[df["BUL_BEEN"] == 999, "BUL_BEEN"] = np.nan
 col_graph1, col_filters = st.columns([2, 1])
 
 #########################################################
-# STREAMLIT PAGE SETUP
-
-st.title("Gender Differences in Childhood Overweight")
-st.set_page_config(layout="wide")
+# STREAMLIT PAGE CSS SETUP
 
 st.markdown("""
 <style>
+            
 /* Pozadí celé appky */
 .stApp {
     background-color: #f6f8fb;
 }
 
-/* === KPI sekce - mezera pod KPI boxy === */
+/* KPI sekce */
 .kpi-wrapper {
-    margin-bottom: 80px; 
+    margin-top: 8px;      /* menší mezera NAD KPIs */
+    margin-bottom: 40px;  /* stejná mezera POD KPIs jako má Lenka */
 }
 
 /* jednotlivé KPI boxy */
@@ -83,27 +84,6 @@ st.markdown("""
     font-size: 1.6rem;
     font-weight: 600;
     color: #111827;
-}
-
-/* Pidlíky pro kluky/holky v KPI 2 a 4 */
-.gender-pill {
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width:1.9rem;
-    height:1.9rem;
-    border-radius:0.6rem;
-    font-size:1.1rem;
-    color:white;
-    margin-right:0.25rem;
-}
-.gender-pill.male {
-    background:#3b82f6;
-}
-.gender-pill.female {
-    background:#ec4899;
-    margin-left:0.6rem;
-    margin-right:0.25rem;
 }
 
 /* Plotly grafy jako karty */
@@ -172,6 +152,16 @@ div[style*="#f63366"] {
 ########################################################
 DETAIL_YEAR = 2018
 
+# ---------- KPI 1–5 LABELS ----------
+DETAIL_YEAR = 2018
+
+kpi1_label = "📈 Global change (2002-2018)"
+kpi2_label = f"♀️ Overweight ({DETAIL_YEAR})"
+kpi3_label = f"♂️ Overweight ({DETAIL_YEAR})"
+kpi4_label = "👧 Highest-risk age (2018)"
+kpi5_label = "🚨 Country with highest overweight (2018)"
+
+
 if df.empty:
     st.warning("No data for selected filters.")
 else:
@@ -185,7 +175,6 @@ else:
     overall_detail = df_detail_year["OVERWEIGHT"].mean()
     overall_base = df[df["YEAR"] == base_year]["OVERWEIGHT"].mean()
 
-    kpi1_label = "Overweight change"
     if pd.notna(overall_base) and pd.notna(overall_detail):
         diff_pct = (overall_detail - overall_base) * 100
         kpi1_value = f"{diff_pct:+.1f} %"
@@ -193,8 +182,8 @@ else:
         kpi1_value = "N/A"
 
     # ---------- KPI 2 + 3: Girls/Boys share among OW (DETAIL_YEAR) ----------
-    kpi2_label = f"Overweight ♀️ ({DETAIL_YEAR})"
-    kpi3_label = f"Overweight ♂️ ({DETAIL_YEAR})"
+    kpi2_label = f"♀️ Overweight ({DETAIL_YEAR})"
+    kpi3_label = f"♂️ Overweight ({DETAIL_YEAR})"
     kpi2_value = "N/A"
     kpi3_value = "N/A"
 
@@ -221,7 +210,7 @@ else:
                 kpi3_value = f"{boys_pct:.0f} %"
 
     # ---------- KPI 4: Age with highest overweight (DETAIL_YEAR) ----------
-    kpi4_label = "Worst age"
+    kpi4_label = "🧒 Highest-risk age (2018)"
     kpi4_value = "N/A"
 
     if not df_detail_year.empty:
@@ -235,80 +224,69 @@ else:
             best_age = int(row_max["AGE"])
             kpi4_value = f"{best_age}"
 
-    # ---------- KPI 5: Gender gap in overweight (DETAIL_YEAR) ----------
-    kpi5_label = "Gender gap"
+        # ---------- KPI 5: Country with highest overweight (DETAIL_YEAR) ----------
+    kpi5_label = "🚨 Country with highest overweight"
     kpi5_value = "N/A"
 
     if not df_detail_year.empty:
-        grp = (
+        country_means = (
             df_detail_year
-            .groupby("SEX", as_index=False, observed=True)["OVERWEIGHT"]
+            .groupby("COUNTRY_NAME", as_index=False)["OVERWEIGHT"]
             .mean()
         )
 
-        if set(grp["SEX"]) == {1, 2}:
-            boys = grp.loc[grp["SEX"] == 1, "OVERWEIGHT"].iloc[0]
-            girls = grp.loc[grp["SEX"] == 2, "OVERWEIGHT"].iloc[0]
-            gap = (girls - boys) * 100
-
-            if abs(gap) < 0.1:
-                kpi5_value = "≈ 0 %"
-            elif gap > 0:
-                kpi5_value = f"♀️ +{gap:.1f} %"
-            else:
-                kpi5_value = f"♂️ +{abs(gap):.1f} %"
+        if not country_means.empty:
+            row_max = country_means.sort_values("OVERWEIGHT", ascending=False).iloc[0]
+            fattest_country = row_max["COUNTRY_NAME"]
+            fattest_value = row_max["OVERWEIGHT"] * 100
+            kpi5_value = f"{fattest_country} ({fattest_value:.0f} %)"
 
     # ---------- KPI layout (5 boxů) ----------
     st.markdown('<div class="kpi-wrapper">', unsafe_allow_html=True)
-    kpi_col1, kpi_col2, kpi_col3, kpi_col4, kpi_col5 = st.columns(5)
+kpi_col1, kpi_col2, kpi_col3, kpi_col4, kpi_col5 = st.columns(5)
 
-    with kpi_col1:
-        st.markdown(f"""
-        <div class="kpi-box">
-            <div class="kpi-label">{kpi1_label}</div>
-            <div class="kpi-value">{kpi1_value}</div>
-        </div>
-        """, unsafe_allow_html=True)
+with kpi_col1:
+    st.markdown(f"""
+    <div class="kpi-box">
+        <div class="kpi-label">{kpi1_label}</div>
+        <div class="kpi-value">{kpi1_value}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    with kpi_col2:
-        # girls
-        st.markdown(f"""
-        <div class="kpi-box">
-            <div class="kpi-label">{kpi2_label}</div>
-            <div class="kpi-value">
-                <span class="gender-pill female">♀</span>{kpi2_value}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+with kpi_col2:
+    st.markdown(f"""
+    <div class="kpi-box">
+        <div class="kpi-label">{kpi2_label}</div>
+        <div class="kpi-value">{kpi2_value}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    with kpi_col3:
-        # boys
-        st.markdown(f"""
-        <div class="kpi-box">
-            <div class="kpi-label">{kpi3_label}</div>
-            <div class="kpi-value">
-                <span class="gender-pill male">♂</span>{kpi3_value}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+with kpi_col3:
+    st.markdown(f"""
+    <div class="kpi-box">
+        <div class="kpi-label">{kpi3_label}</div>
+        <div class="kpi-value">{kpi3_value}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    with kpi_col4:
-        st.markdown(f"""
-        <div class="kpi-box">
-            <div class="kpi-label">{kpi4_label}</div>
-            <div class="kpi-value">{kpi4_value}</div>
-        </div>
-        """, unsafe_allow_html=True)
+with kpi_col4:
+    st.markdown(f"""
+    <div class="kpi-box">
+        <div class="kpi-label">{kpi4_label}</div>
+        <div class="kpi-value">{kpi4_value}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    with kpi_col5:
-        st.markdown(f"""
-        <div class="kpi-box">
-            <div class="kpi-label">{kpi5_label}</div>
-            <div class="kpi-value">{kpi5_value}</div>
-        </div>
-        """, unsafe_allow_html=True)
+with kpi_col5:
+    st.markdown(f"""
+    <div class="kpi-box">
+        <div class="kpi-label">{kpi5_label}</div>
+        <div class="kpi-value">{kpi5_value}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
+
 
 ##############################################################
 # FILTERS – budou v pravém sloupci vedle Grafu 1
@@ -344,14 +322,6 @@ df_filtered = df_filtered[
     (df_filtered["AGE"] >= age_min) &
     (df_filtered["AGE"] <= age_max)
 ]
-
-
-# default values (overwritten later in UI)
-selected_country = "All countries"
-min_age, max_age = int(df["AGE"].min()), int(df["AGE"].max())
-age_min, age_max = min_age, max_age
-
-country_list = sorted(df["COUNTRY_NAME"].unique().tolist())
 
 
 #######################################################
@@ -467,6 +437,7 @@ DETAIL_YEAR = 2018
 df_norm_detail = prep_df_normalized_for_year(df_filtered, DETAIL_YEAR)
 
 
+
 ##########################################################
 # GRAPH 1 - Overweight overview in time - Boys vs Girls
 
@@ -496,14 +467,24 @@ if not df_filtered.empty:
 
     fig1.update_layout(
     xaxis_title="Year",
-    yaxis_title="Overweight prevalence (0-1)",
+    yaxis_title="Overweight prevalence (0–1)",
     legend_title="Gender",
     title=dict(
         text="Overweight Trend by Gender (2002-2018)",
-        font=dict(size=24)
+        font=dict(size=24),
+        x=0.0,          # titulek zarovnaný vlevo
+        xanchor="left",
     ),
-    margin=dict(l=80, r=40, t=60, b=60)  
+    legend=dict(
+        orientation="h",   # vodorovná legenda
+        yanchor="top",
+        y=1.15,            # kousek nad plot area
+        xanchor="right",
+        x=1.0,             # PŘÍMO na pravém okraji, ne za ním
+    ),
+    margin=dict(l=60, r=40, t=90, b=60)
     )
+
 
 #Layout graph1
 with row1_col1:
@@ -590,7 +571,7 @@ if not df_norm_detail.empty:
                 xaxis_title="Average risk (0–1)",
                 yaxis_title="Behaviour",
                 legend_title="Gender",
-                height=450,
+                height=500,
                 margin=dict(l=80, r=40, t=60, b=60),
                 title=dict(font=dict(size=24))
             )
@@ -727,6 +708,7 @@ if not df_age_base.empty:
         yaxis_title="Overweight prevalence (0-1)",
         legend_title="Gender",
         title=dict(font=dict(size=24)),
+        height=600,
         margin=dict(l=80, r=40, t=60, b=60)
     )
 
@@ -807,97 +789,143 @@ if not df_norm_detail.empty:
         )
 
 ##########################################################
-# GRAPH 6 – Overweight trend with linear projection to 2022
-# Respektuje country + age filtry (df_filtered)
+# GRAPH 6 – World map: Where are girls vs boys more overweight?
+# - DETAIL_YEAR (2018)
+# - age filter respektovaný
+# - barva = rozdíl Girls − Boys (procentní body)
 ##########################################################
 
-if not df_filtered.empty:
-    # agregace prevalence podle roku a pohlaví
-    df_trend_pred = (
-        df_filtered
-        .groupby(["YEAR", "SEX"], as_index=False, observed=True)["OVERWEIGHT"]
+fig6 = None
+
+df_map = df[
+    (df["YEAR"] == DETAIL_YEAR) &
+    (df["AGE"] >= age_min) &
+    (df["AGE"] <= age_max)
+].copy()
+
+if not df_map.empty:
+    df_map["SEX_LABEL"] = df_map["SEX"].map({1: "Boys", 2: "Girls"})
+
+    df_gender = (
+        df_map
+        .groupby(["COUNTRY_NAME", "SEX_LABEL"], as_index=False, observed=True)["OVERWEIGHT"]
         .mean()
     )
-    df_trend_pred["SEX_LABEL"] = df_trend_pred["SEX"].map({1: "Boys", 2: "Girls"})
 
-    years_all = sorted(df_trend_pred["YEAR"].unique().tolist())
-    if len(years_all) >= 3:  # ať má regrese aspoň nějaký smysl
-        min_year = min(years_all)
-        max_year = max(years_all)
+    df_pivot = (
+        df_gender
+        .pivot(index="COUNTRY_NAME", columns="SEX_LABEL", values="OVERWEIGHT")
+        .reset_index()
+    )
 
-        rows_pred = []
-        for sex_code, sex_label in [(1, "Boys"), (2, "Girls")]:
-            sub = df_trend_pred[df_trend_pred["SEX"] == sex_code]
-            if sub["YEAR"].nunique() < 3:
-                continue
+    df_pivot = df_pivot.dropna(subset=["Boys", "Girls"], how="all")
 
-            x = sub["YEAR"].values
-            y = sub["OVERWEIGHT"].values
+    # rozdíl v p.b. (Girls − Boys)
+    df_pivot["GAP_PP"] = (df_pivot["Girls"] - df_pivot["Boys"]) * 100
 
-            # jednoduchá lineární regrese (y = m*x + b)
-            m, b = np.polyfit(x, y, 1)
+    # max rozdíl kvůli škále (ať to není přetáhlé)
+    max_gap = np.nanmax(np.abs(df_pivot["GAP_PP"]))
+    # aby škála nebyla moc úzká, minimálně ±5 p.b., ideálně zaokrouhlené nahoru
+    max_range = max(5, np.ceil(max_gap / 5.0) * 5)
 
-            for year in range(min_year, 2023):  # až do 2022 včetně
-                y_pred = m * year + b
-                rows_pred.append({
-                    "YEAR": year,
-                    "OVERWEIGHT": y_pred,
-                    "SEX_LABEL": sex_label,
-                    "TYPE": "Predicted"
-                })
+    gender_gap_colors = [
+        "#08306b",  # velmi tmavě modrá
+        "#2171b5",  # středně modrá
+        "#e5e7eb",  # světle šedá kolem nuly
+        "#fbb6ce",  # světle růžová
+        "#7a0177",  # velmi tmavě růžová
+    ]
 
-        if rows_pred:
-            df_pred = pd.DataFrame(rows_pred)
+    fig6 = px.choropleth(
+        df_pivot,
+        locations="COUNTRY_NAME",
+        locationmode="country names",
+        color="GAP_PP",
+        color_continuous_scale=gender_gap_colors,
+        range_color=(-max_range, max_range),
+        title=f"Where are girls vs boys more overweight? (2018, age {age_min}–{age_max})",
+        hover_name="COUNTRY_NAME",
+        hover_data={
+            "GAP_PP": ":.1f",  # Girls − Boys (p.p.)
+            "Boys": ":.1%",    # prevalence kluků
+            "Girls": ":.1%",   # prevalence holek
+        },
+    )
 
-            df_actual = df_trend_pred.copy()
-            df_actual["TYPE"] = "Actual"
+    fig6.update_coloraxes(
+        colorbar_title="Girls − Boys (p.p.)",
+        colorbar_tickformat=".1f",
+        cmid=0  # střed divergující škály v nule
+    )
 
-            df_all = pd.concat([df_actual, df_pred], ignore_index=True)
+    fig6.update_geos(
+        projection_type="equirectangular",
+        showcountries=True,
+        showland=True,
+        landcolor="white",
+        showcoastlines=True,
+        showframe=False,             # opět bez rámečku
+        lataxis_range=[30, 75],
+        lonaxis_range=[-120, 80],
+        
+    )
+    fig6.update_layout(
+        height=650,
+        margin=dict(l=0, r=0, t=40, b=0),
+        title=dict(font=dict(size=24), y=0.96),
+    )
 
-            fig6 = go.Figure()
-            colors = {"Boys": "#3b8ee1", "Girls": "#eb8fbd"}
 
-            for sex_label in ["Boys", "Girls"]:
-                sub_actual = df_all[
-                    (df_all["SEX_LABEL"] == sex_label) &
-                    (df_all["TYPE"] == "Actual")
-                ]
-                sub_pred = df_all[
-                    (df_all["SEX_LABEL"] == sex_label) &
-                    (df_all["TYPE"] == "Predicted")
-                ]
 
-                # skutečná data
-                if not sub_actual.empty:
-                    fig6.add_trace(go.Scatter(
-                        x=sub_actual["YEAR"],
-                        y=sub_actual["OVERWEIGHT"],
-                        mode="markers+lines",
-                        name=f"{sex_label} – actual",
-                        line=dict(color=colors[sex_label])
-                    ))
+    # výraznější obrys států
+    fig6.update_traces(
+        marker_line_width=0.6,
+        marker_line_color="black",
+    )
 
-                # predikce jen po 2018 (nechceme „překreslit“ historii)
-                sub_pred_future = sub_pred[sub_pred["YEAR"] > max_year]
-                if not sub_pred_future.empty:
-                    fig6.add_trace(go.Scatter(
-                        x=sub_pred_future["YEAR"],
-                        y=sub_pred_future["OVERWEIGHT"],
-                        mode="lines",
-                        name=f"{sex_label} – projection",
-                        line=dict(color=colors[sex_label], dash="dash")
-                    ))
+    fig6.update_layout(
+    height=580,
+    margin=dict(l=10, r=10, t=40, b=20),
+    title=dict(
+        font=dict(size=24),
+        y=0.93,
+    ),
+    )
 
-            fig6.update_layout(
-                title="Overweight trend with linear projection to 2022",
-                xaxis_title="Year",
-                yaxis_title="Overweight prevalence (0–1)",
-                legend_title="",
-                margin=dict(l=80, r=40, t=60, b=60)
-            )
 
-            fig6.update_xaxes(tickvals=[2002, 2006, 2010, 2014, 2018])
 
+
+
+
+
+
+
+#########################################################
+# LAYOUT Legendy
+
+def fix_legend_right(fig, right_margin=160):
+    """Legenda vpravo, ale s dostatečným prostorem, aby nebyla uřízlá."""
+    if fig is None:
+        return
+
+    fig.update_layout(
+        legend=dict(
+            x=1.02,        # kousek vpravo od plotu
+            xanchor="left",
+            y=1.0,
+            yanchor="top",
+            orientation="v",
+        ),
+        margin=dict(
+            l=80,
+            r=right_margin,   # větší pravý okraj pro legendu
+            t=60,
+            b=80,
+        ),
+    )
+
+for f in [fig2, fig3, fig4, fig5, fig6]:
+    fix_legend_right(f)
 
 #####################################################
 # DASHBOARD LAYOUT
@@ -928,12 +956,12 @@ with row3_col2:
     else:
         st.info("Graph 5 not available for current filters.")
 
-row4_col1, row4_col2 = st.columns(2)
-with row4_col1:
-    if fig6 is not None:
-        st.plotly_chart(fig6, width='stretch', key="fig6")
-    else:
-        st.info("Graph 6 not available for current filters.")
+# GRAPH 6 – full width
+if fig6 is not None:
+    st.plotly_chart(fig6, width='stretch', key="fig6")
+else:
+    st.info("Graph 6 not available for current filters.")
+
 
 
 
