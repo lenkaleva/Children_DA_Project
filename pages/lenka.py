@@ -90,6 +90,11 @@ def show_lenka_page():
 
     st.set_page_config(page_title="Analýza dětské obezity", layout="wide")
 
+   # ⭐ FUNKCE NA ZVĚTŠENÍ TITULKU GRAFŮ
+    def title24(fig):
+        fig.update_layout(title_font=dict(size=24))
+        return fig
+
     st.markdown("""
     <style>
 
@@ -309,7 +314,7 @@ def show_lenka_page():
             )
         )
 
-        st.plotly_chart(fig_line, width='stretch', config={})
+        st.plotly_chart(title24(fig_line), width='stretch', config={})
 
 
     # ------------------------------------------------------------
@@ -362,8 +367,9 @@ def show_lenka_page():
         # původní legenda vpravo
         fig_top5.update_layout(
             legend=dict(
+                title="Country",
                 orientation="v",
-                x=1.02,
+                x=1.20,
                 y=1,
                 xanchor="left",
                 yanchor="top"
@@ -374,14 +380,14 @@ def show_lenka_page():
         fig_top5.update_layout(
             margin=dict(t=90),
             legend=dict(
+                title="Country",      # ← stejně i zde
                 orientation="h",
-                x=0.5,
+                x=0.70,
                 y=1.18,
                 xanchor="center",
                 yanchor="bottom"
             )
         )
-
 
 
     # ------------------------------------------------------------
@@ -401,18 +407,45 @@ def show_lenka_page():
         color_discrete_map=color_map,
         title="Overweight by Age"
     )
+    # Legenda – podmíněné umístění (stejně jako u TOP5)
+    if selected_country == "All countries":
+        fig_age.update_layout(
+            legend=dict(
+                title="Country",      # ← vždy stejný název legendy
+                orientation="v",
+                x=1.02,
+                y=1,
+                xanchor="left",
+                yanchor="top"
+            )
+        )
+    else:
+        fig_age.update_layout(
+            margin=dict(t=90),
+            legend=dict(
+                title="Country",      # ← stejně i zde
+                orientation="h",
+                x=0.5,
+                y=1.18,
+                xanchor="center",
+                yanchor="bottom"
+            )
+        )
 
     col_g2, col_g3 = st.columns(2)
+
     with col_g2:
-        st.plotly_chart(fig_top5, width='stretch', config={})
+        st.plotly_chart(title24(fig_top5), width='stretch', config={})
+
     with col_g3:
-        st.plotly_chart(fig_age, width='stretch', config={})
+        st.plotly_chart(title24(fig_age), width='stretch', config={})
+
 
 
     # ------------------------------------------------------------
     # GRAF 4 – TOP X (aliasy doplněny)
     # ------------------------------------------------------------
-    top_n = st.slider("Number of factors:", 5, 20, 15)
+    top_n = st.slider("Number of factors:", 5, 15, 15)   # ← MAX = 15
 
     remaining = corr_vals.index.tolist()[5:]
     topX = remaining[:top_n]
@@ -441,6 +474,34 @@ def show_lenka_page():
         color_discrete_map=color_map,
         title=f"TOP {top_n} additional factors (normalized)"
     )
+
+    # ⭐ ZMĚNA VELIKOSTI NÁZVU
+    fig_topX.update_layout(title_font=dict(size=24))
+
+    # ⭐ STEJNÁ LOGIKA LEGENDY — KOPIE Z PŘEDCHOZÍCH GRAFŮ
+    if selected_country == "All countries":
+        fig_topX.update_layout(
+            legend=dict(
+                title="Country",
+                orientation="v",
+                x=1.20,
+                y=1,
+                xanchor="left",
+                yanchor="top"
+            )
+        )
+    else:
+        fig_topX.update_layout(
+            margin=dict(t=110),
+            legend=dict(
+                title="Country",
+                orientation="h",
+                x=0.70,
+                y=1.18,
+                xanchor="center",
+                yanchor="bottom"
+            )
+        )
 
     st.plotly_chart(fig_topX, width='stretch', config={})
 
@@ -535,10 +596,10 @@ def show_lenka_page():
     col4, col5 = st.columns([1, 1])
 
     with col4:
-        st.plotly_chart(fig_dev, width='stretch', config={})
+        st.plotly_chart(title24(fig_dev), width='stretch', config={})
 
     with col5:
-        st.plotly_chart(fig_dumbbell, width='stretch', config={})
+        st.plotly_chart(title24(fig_dumbbell), width='stretch', config={})
 
 
 # ------------------------------------------------------------
