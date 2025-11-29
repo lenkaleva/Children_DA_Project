@@ -373,7 +373,7 @@ factor_alias = {
     "FAMILY_MEALS_TOGETHER": "No family meals",
     "BREAKFAST_WEEKDAYS": "No breakfast (weekdays)",
     "BREAKFAST_WEEKEND": "No breakfast (weekend)",
-    "TOOTH_BRUSHING": "Poor teeth care",
+    "TOOTH_BRUSHING": "Poor tooth care",
     "STUD_TOGETHER": "No friend time",
     "BUL_OTHERS": "Bullies others",
     "BUL_BEEN": "Been bullied",
@@ -556,7 +556,9 @@ if not df_norm_detail.empty and "top5_corr" in locals():
                 .unstack("SEX_STRING")
             )
 
-            gap_table_rest["GIRLS_MINUS_BOYS"] = gap_table_rest["Girls"] - gap_table_rest["Boys"]
+            gap_table_rest["GIRLS_MINUS_BOYS"] = (
+                gap_table_rest["Girls"] - gap_table_rest["Boys"]
+            )
             df_gap = gap_table_rest.reset_index()
 
             factor_order = (
@@ -614,6 +616,7 @@ if not df_norm_detail.empty and "top5_corr" in locals():
                     font=dict(size=24)
                 )
             )
+
 
 # ------------------------------------------------------------
 # GRAPH 4 – Overweight by Age and Gender (2018)
