@@ -1,62 +1,193 @@
 import streamlit as st
 import pandas as pd
+import joblib
 
-# Načtení dat
-if 'df' not in st.session_state:
-    st.session_state.df = pd.read_csv('data.csv')
+st.set_page_config(page_title="Predikce dětské obezity", page_icon="🧒")
 
-df = st.session_state.df
+st.title("🧒 Predikce dětské obezity")
 
-# ------------------------- Úvodní stránka -------------------------
 
-st.title("Dětská nadváha v mezinárodním kontextu")
-st.subheader("Analýza dat z mezinárodní HBSC studie (2002–2018)")
+# ---------------------------
+# 1) Načtení modelu
+# ---------------------------
+@st.cache_resource
+def load_model():
+    bundle = joblib.load("model.pkl")
+    return bundle["model"], bundle["features"]
 
-st.markdown("""
-### 📊 Zdroje dat  
-HBSC (Health Behaviour in School-aged Children) je mezinárodní studie zkoumající zdraví, životní styl a psychickou pohodu žáků 5., 7. a 9. tříd.  
-Analýza vychází z pěti vln: **2002, 2006, 2010, 2014 a 2018**, každá o ~250 000 pozorováních.
-""")
+model, feature_names = load_model()
 
-# ------------------------- Rezervace místa pro obrázek -------------------------
-# Sem v budoucnu vložíme obrázek, např.:
-# st.image("assets/uvod.jpg", caption="Ilustrační obrázek", use_column_width=True)
 
-# ------------------------- Cíl projektu -------------------------
-st.markdown("""
-### 🎯 Cíl projektu  
-Cílem bylo určit hlavní faktory, které ovlivňují dětskou nadváhu. Zaměřily jsme se na otázky:
-- Jakou roli hraje pohyb, strava a spánek?  
-- Jsou sportující děti štíhlejší?  
-- Jak velký vliv mají nezdravé potraviny?  
-- Jak se liší riziko mezi pohlavími, věkem a státy?  
-- Ovlivňuje nadváhu psychická pohoda?  
-- Jak se nadváha mění v čase?
-""")
+COUNTRY_PREFIX = "COUNTRY_NAME_"
 
-# ------------------------- Hlavní zjištění -------------------------
-st.markdown("""
-### 🔍 Hlavní zjištění
-- **20 % dětí má nadváhu** – každé páté dítě.  
-- **Chlapci tvoří 2/3** dětí s nadváhou.  
-- Nejohroženější věková skupina je **11 let**.  
-- Nejrizikovější faktory jsou:  
-    - častá konzumace sladkostí  
-    - nedostatek pohybu  
-    - žádná snídaně ve všední dny  
-    - špatná ústní hygiena  
-    - časté rvačky  
-- **Dívky s nadváhou** častěji trpí psychickými a zdravotními problémy.  
-- **Chlapci** jedí více sladkostí, pijí slazené nápoje a tráví více času u počítače.  
-- **Mezinárodní rozdíly:**  
-    - největší rozdíl mezi pohlavími: *Itálie*  
-    - nejmenší: *Dánsko*  
-    - nejvíce dětí s nadváhou: *Malta*, *Maďarsko*  
-    - nejméně: *Dánsko*, *Nizozemsko*
-""")
+controlled_features = [
+    "SEX", "AGE", "SOFT_DRINKS", "SWEETS", "VEGETABLES", "FRIEND_TALK",
+    "PHYS_ACT_60", "BREAKFAST_WEEKDAYS", "TOOTH_BRUSHING",
+    "FEEL_LOW", "TALK_FATHER"
+]
 
-# ------------------------- Poděkování -------------------------
-st.markdown("""
-### 🙏 Poděkování  
-.
-""")
+# ---------------------------
+# 2) Funkce – vytvoření vstupu
+# ---------------------------
+def build_input_row(user_input: dict, feature_names, controlled_features):
+    row = pd.Series(0, index=feature_names, dtype="float")
+
+    # běžné featury
+    for col, val in user_input.items():
+
+        # country zpracujeme zvlášť
+        if col == "COUNTRY_NAME":
+            continue
+
+        if col in controlled_features and col in feature_names:
+            row[col] = float(val)
+
+    # --- COUNTRY handling ---
+    if "COUNTRY_NAME" in user_input:
+        country_col = f"{COUNTRY_PREFIX}{user_input['COUNTRY_NAME']}"
+        if country_col in feature_names:
+            row[country_col] = 1
+
+    return pd.DataFrame([row], columns=feature_names)
+
+
+def predict_child(user_input):
+    X_user = build_input_row(user_input, feature_names, controlled_features)
+    pred_class = model.predict(X_user)[0]
+    pred_proba = model.predict_proba(X_user)[0, 1]
+    return pred_class, pred_proba
+
+
+# ---------------------------
+# 3) DEFINICE ALIASŮ 1–7 (1 nejlepší → 7 nejhorší)
+# ---------------------------
+
+soft_drinks_map = {
+    1: "1 - never",
+    2: "2 - less than once a week",
+    3: "3 - once a week",
+    4: "4 - 2–4 days a week",
+    5: "5 - 5–6 days a week",
+    6: "6 - once daily",
+    7: "7 - more than once daily",
+}
+
+sweets_map = soft_drinks_map
+vegetables_map = soft_drinks_map
+
+friend_talk_map = {
+    1: "1 - very strongly disagree",
+    2: "2",
+    3: "3",
+    4: "4",
+    5: "5",
+    6: "6",
+    7: "7 - very strongly agree",
+}
+
+phys_map = {
+    1: "1 - 0 days",
+    2: "2 - 1 day",
+    3: "3 - 2 days",
+    4: "4 - 3 days",
+    5: "5 - 4 days",
+    6: "6 - 5 days",
+    7: "7 - 6–7 days",
+}
+
+breakfast_map = {
+    1: "1 - never",
+    2: "2 - one day",
+    3: "3 - two days",
+    4: "4 - three days",
+    5: "5 - four days",
+    6: "6 - five days",
+    7: "7 - every day",
+}
+
+tooth_map = {
+    1: "1 - more than once a day",
+    2: "2 - once a day",
+    3: "3 - once a week",
+    4: "4 - less than weekly",
+    5: "5 - never",
+}
+
+feel_low_map = {
+    1: "1 - about every day",
+    2: "2 - more than once a week",
+    3: "3 - about every week",
+    4: "4 - about every month",
+    5: "5 - rarely or never",
+}
+
+talk_father_map = {
+    1: "1 - very easy",
+    2: "2 - easy",
+    3: "3 - difficult",
+    4: "4 - very difficult",
+    5: "5 - doesn’t have or see",
+}
+
+
+# ---------------------------
+# 4) UI – formulář
+# ---------------------------
+
+col1, col2 = st.columns(2)
+
+with col1:
+    sex = st.selectbox("Pohlaví", {"Kluk": 1, "Holka": 0})
+    age = st.number_input("Věk dítěte", min_value=7, max_value=18, step=1)
+
+    soft = st.selectbox("Sladké nápoje", list(soft_drinks_map.values()))
+    sweets = st.selectbox("Sladkosti", list(sweets_map.values()))
+    vegetables = st.selectbox("Zelenina", list(vegetables_map.values()))
+
+with col2:
+    friend_talk = st.selectbox("Mluví s kamarády", list(friend_talk_map.values()))
+    phys = st.selectbox("Fyzická aktivita (< 60 min)", list(phys_map.values()))
+    breakfast = st.selectbox("Snídaně – všední dny", list(breakfast_map.values()))
+    teeth = st.selectbox("Čištění zubů", list(tooth_map.values()))
+    feel_low = st.selectbox("Cítí se sklesle", list(feel_low_map.values()))
+    talk_father = st.selectbox("Komunikuje s otcem", list(talk_father_map.values()))
+
+country = st.selectbox("Země", [c.replace("COUNTRY_NAME_", "") for c in feature_names if c.startswith(COUNTRY_PREFIX)])
+
+
+# ---------------------------
+# 5) Převod aliasů zpět na čísla
+# ---------------------------
+def reverse_lookup(value, dictionary):
+    for k, v in dictionary.items():
+        if v == value:
+            return k
+    return None
+
+
+if st.button("🔍 Spočítat predikci"):
+
+    user_data = {
+        "SEX": sex,
+        "AGE": age,
+        "SOFT_DRINKS": reverse_lookup(soft, soft_drinks_map),
+        "SWEETS": reverse_lookup(sweets, sweets_map),
+        "VEGETABLES": reverse_lookup(vegetables, vegetables_map),
+        "FRIEND_TALK": reverse_lookup(friend_talk, friend_talk_map),
+        "PHYS_ACT_60": reverse_lookup(phys, phys_map),
+        "BREAKFAST_WEEKDAYS": reverse_lookup(breakfast, breakfast_map),
+        "TOOTH_BRUSHING": reverse_lookup(teeth, tooth_map),
+        "FEEL_LOW": reverse_lookup(feel_low, feel_low_map),
+        "TALK_FATHER": reverse_lookup(talk_father, talk_father_map),
+        "COUNTRY_NAME": country
+    }
+
+    cls, proba = predict_child(user_data)
+
+    st.markdown("---")
+    st.subheader("📊 Výsledek")
+
+    if cls == 1:
+        st.error(f"**Zvýšené riziko obezity.** Pravděpodobnost: **{proba:.1%}**")
+    else:
+        st.success(f"Nízké riziko obezity – pravděpodobnost: **{proba:.1%}**")
