@@ -6,7 +6,6 @@ st.set_page_config(page_title="Predikce dětské obezity", page_icon="🧒")
 
 st.title("🧒 Predikce dětské obezity")
 
-
 # ---------------------------
 # 1) Načtení modelu
 # ---------------------------
@@ -16,7 +15,6 @@ def load_model():
     return bundle["model"], bundle["features"]
 
 model, feature_names = load_model()
-
 
 COUNTRY_PREFIX = "COUNTRY_NAME_"
 
@@ -32,17 +30,13 @@ controlled_features = [
 def build_input_row(user_input: dict, feature_names, controlled_features):
     row = pd.Series(0, index=feature_names, dtype="float")
 
-    # běžné featury
     for col, val in user_input.items():
-
-        # country zpracujeme zvlášť
         if col == "COUNTRY_NAME":
             continue
-
         if col in controlled_features and col in feature_names:
             row[col] = float(val)
 
-    # --- COUNTRY handling ---
+    # COUNTRY one-hot
     if "COUNTRY_NAME" in user_input:
         country_col = f"{COUNTRY_PREFIX}{user_input['COUNTRY_NAME']}"
         if country_col in feature_names:
@@ -59,7 +53,7 @@ def predict_child(user_input):
 
 
 # ---------------------------
-# 3) DEFINICE ALIASŮ 1–7 (1 nejlepší → 7 nejhorší)
+# 3) Alias map 1–7 (1 good → 7 bad)
 # ---------------------------
 
 soft_drinks_map = {
@@ -114,11 +108,11 @@ tooth_map = {
 }
 
 feel_low_map = {
-    1: "1 - about every day",
-    2: "2 - more than once a week",
-    3: "3 - about every week",
-    4: "4 - about every month",
-    5: "5 - rarely or never",
+    1: "1 - never",
+    2: "2 - rarely",
+    3: "3 - monthly",
+    4: "4 - weekly",
+    5: "5 - several times per week",
 }
 
 talk_father_map = {
@@ -126,7 +120,7 @@ talk_father_map = {
     2: "2 - easy",
     3: "3 - difficult",
     4: "4 - very difficult",
-    5: "5 - doesn’t have or see",
+    5: "5 - doesn't see",
 }
 
 
@@ -137,7 +131,7 @@ talk_father_map = {
 col1, col2 = st.columns(2)
 
 with col1:
-    sex = st.selectbox("Pohlaví", {"Kluk": 1, "Holka": 0})
+    sex = st.selectbox("Pohlaví", {"Kluk": 1, "Holka": 2})
     age = st.number_input("Věk dítěte", min_value=7, max_value=18, step=1)
 
     soft = st.selectbox("Sladké nápoje", list(soft_drinks_map.values()))
@@ -152,11 +146,14 @@ with col2:
     feel_low = st.selectbox("Cítí se sklesle", list(feel_low_map.values()))
     talk_father = st.selectbox("Komunikuje s otcem", list(talk_father_map.values()))
 
-country = st.selectbox("Země", [c.replace("COUNTRY_NAME_", "") for c in feature_names if c.startswith(COUNTRY_PREFIX)])
+country = st.selectbox(
+    "Země",
+    [c.replace(COUNTRY_PREFIX, "") for c in feature_names if c.startswith(COUNTRY_PREFIX)]
+)
 
 
 # ---------------------------
-# 5) Převod aliasů zpět na čísla
+# 5) Převod aliasů zpět na hodnoty 1–7
 # ---------------------------
 def reverse_lookup(value, dictionary):
     for k, v in dictionary.items():
@@ -165,6 +162,9 @@ def reverse_lookup(value, dictionary):
     return None
 
 
+# ---------------------------
+# 6) VÝPOČET + GAUGE
+# ---------------------------
 if st.button("🔍 Spočítat predikci"):
 
     user_data = {
@@ -184,6 +184,25 @@ if st.button("🔍 Spočítat predikci"):
 
     cls, proba = predict_child(user_data)
 
+    # ---------- RISK SCORE ----------
+    behaviour_vars = [
+        "SOFT_DRINKS", "SWEETS", "VEGETABLES", "FRIEND_TALK",
+        "PHYS_ACT_60", "BREAKFAST_WEEKDAYS", "TOOTH_BRUSHING",
+        "FEEL_LOW", "TALK_FATHER"
+    ]
+
+    risk_score = 0.0
+    for k in behaviour_vars:
+        v = user_data[k]
+        if v in [4, 5, 6]:
+            risk_score += 0.5
+        elif v == 7:
+            risk_score += 1.0
+
+    max_score = len(behaviour_vars)
+    risk_ratio = risk_score / max_score
+
+    # ---------- Výsledek ----------
     st.markdown("---")
     st.subheader("📊 Výsledek")
 
@@ -191,3 +210,59 @@ if st.button("🔍 Spočítat predikci"):
         st.error(f"**Zvýšené riziko obezity.** Pravděpodobnost: **{proba:.1%}**")
     else:
         st.success(f"Nízké riziko obezity – pravděpodobnost: **{proba:.1%}**")
+
+    # ---------- GRAFICKÝ GAUGE ----------
+    st.write("### Behaviour Risk Meter")
+
+    angle = risk_ratio * 180  # 0–180°
+
+    gauge_html = f"""
+    <div style="width: 280px; margin: auto;">
+
+      <div style="
+          width: 280px;
+          height: 140px;
+          background: conic-gradient(
+              #4caf50 0deg 60deg,
+              #ffeb3b 60deg 120deg,
+              #f44336 120deg 180deg
+          );
+          border-radius: 280px 280px 0 0;
+          position: relative;
+          margin-top: 10px;
+          overflow: hidden;
+      ">
+
+          <div style="
+              width: 4px;
+              height: 95px;
+              background: black;
+              position: absolute;
+              bottom: 0;
+              left: 50%;
+              transform-origin: bottom;
+              transform: translateX(-50%) rotate({angle}deg);
+              border-radius: 2px;
+          "></div>
+
+          <div style="
+              width: 22px;
+              height: 22px;
+              background: black;
+              border-radius: 50%;
+              position: absolute;
+              bottom: -5px;
+              left: 50%;
+              transform: translateX(-50%);
+          "></div>
+
+      </div>
+
+      <p style="text-align:center; font-size:15px; margin-top:6px;">
+        Weighted risk score: <b>{risk_score:.1f}</b> / {max_score}
+      </p>
+
+    </div>
+    """
+
+    st.markdown(gauge_html, unsafe_allow_html=True)
