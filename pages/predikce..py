@@ -2,20 +2,11 @@ import streamlit as st
 import pandas as pd
 import joblib
 
-# ---------------------------
-# Základní nastavení stránky
-# ---------------------------
-st.set_page_config(page_title="Predikce dětské obezity", page_icon="🧒")
-
 st.title("🧒 Predikce dětské obezity")
-st.write(
-    "Vyplň parametry dítěte. Model náhodného lesa spočítá pravděpodobnost, "
-    "že dítě bude mít nadváhu / obezitu."
-)
 
-# ---------------------------
-# 1) Načtení modelu
-# ---------------------------
+# -----------------------------
+# 1) MODEL
+# -----------------------------
 @st.cache_resource
 def load_model():
     bundle = joblib.load("model.pkl")
@@ -25,208 +16,168 @@ model, feature_names = load_model()
 
 COUNTRY_PREFIX = "COUNTRY_NAME_"
 
+# Feature columns you can control in UI
 controlled_features = [
-    "SEX",
-    "AGE",
-    "SOFT_DRINKS",
-    "SWEETS",
-    "VEGETABLES",
-    "FRIEND_TALK",
-    "PHYS_ACT_60",
-    "BREAKFAST_WEEKDAYS",
-    "TOOTH_BRUSHING",
-    "FEEL_LOW",
-    "TALK_FATHER",
+    "SEX", "AGE", 
+    "SOFT_DRINKS", "SWEETS", "VEGETABLES",
+    "FRIEND_TALK", "PHYS_ACT_60", "BREAKFAST_WEEKDAYS",
+    "TOOTH_BRUSHING", "FEEL_LOW", "TALK_FATHER"
 ]
 
-# ---------------------------
-# 2) Funkce – tvorba X_new
-# ---------------------------
-def build_input_row(user_input: dict) -> pd.DataFrame:
-    """
-    Vytvoří jeden řádek (DataFrame) se stejnými sloupci,
-    jaké měl model při tréninku (feature_names).
-    Vše ostatní je nastaveno na 0.
-    """
-    row = pd.Series(0.0, index=feature_names)
+# -----------------------------
+# 2) OPTIONS FOR USER
+# -----------------------------
 
-    # běžné řízené featury
+sex_options = {"Kluk": 1, "Holka": 2}
+
+soft_drinks_labels = [
+    "1 - never",
+    "2 - less once a week",
+    "3 - once a week",
+    "4 - 2–4 days a week",
+    "5 - 5–6 days a week",
+    "6 - once daily",
+    "7 - more than once daily"
+]
+
+sweets_labels = soft_drinks_labels
+vegetables_labels = soft_drinks_labels
+
+friend_talk_labels = [
+    "1 - very strongly disagree",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7 - very strongly agree"
+]
+
+phys_labels = [
+    "1 - 0 days",
+    "2 - 1 day",
+    "3 - 2 days",
+    "4 - 3 days",
+    "5 - 4 days",
+    "6 - 5 days",
+    "7 - 6-7 days"
+]
+
+breakfast_labels = [
+    "1 - never",
+    "2 - one day",
+    "3 - two days",
+    "4 - three days",
+    "5 - four days",
+    "6 - five days"
+]
+
+tooth_labels = [
+    "1 - more than once a day",
+    "2 - once a day",
+    "3 - once a week",
+    "4 - less than weekly",
+    "5 - never"
+]
+
+feellow_labels = [
+    "1 - about every day",
+    "2 - more than once a week",
+    "3 - about every week",
+    "4 - about every month",
+    "5 - rarely or never"
+]
+
+talkfather_labels = [
+    "1 - very easy",
+    "2 - easy",
+    "3 - difficult",
+    "4 - very difficult",
+    "5 - doesn’t have or see"
+]
+
+# ALL COUNTRIES FROM MODEL
+country_options = [c.replace(COUNTRY_PREFIX, "") 
+                   for c in feature_names if c.startswith(COUNTRY_PREFIX)]
+
+# -----------------------------
+# 3) BUILD INPUT VECTOR
+# -----------------------------
+def build_input_row(user_input):
+    row = pd.Series(0, index=feature_names, dtype=float)
+
+    # NORMAL numerical features
     for col, val in user_input.items():
-        if col in controlled_features and col in feature_names:
-            row[col] = float(val)
+        if col == "COUNTRY_NAME":
+            continue
+        if col in controlled_features:
+            row[col] = val
 
-    # vždy nastavíme Czech Republic, pokud ten sloupec v modelu existuje
-    cz_col = f"{COUNTRY_PREFIX}Czech Republic"
-    if cz_col in feature_names:
-        row[cz_col] = 1.0
+    # COUNTRY one-hot
+    selected = COUNTRY_PREFIX + user_input["COUNTRY_NAME"]
+    if selected in feature_names:
+        row[selected] = 1
 
     return pd.DataFrame([row], columns=feature_names)
 
 
-def predict_child(user_input: dict):
-    X_user = build_input_row(user_input)
-    pred_proba = model.predict_proba(X_user)[0, 1]
-    pred_class = int(model.predict(X_user)[0])
-    return pred_class, pred_proba
-
-
-# ---------------------------
-# 3) Definice možností (škál)
-#     – UŽIVATEL VIDÍ TEXT
-#     – DO MODELU JDOU ČÍSLA
-# ---------------------------
-
-# SOFT_DRINKS / SWEETS / VEGETABLES
-soft_sweets_veggies_opts = {
-    "1 – nikdy": 1,
-    "2 – méně než 1× týdně": 2,
-    "3 – 1× týdně": 3,
-    "4 – 2–4 dny v týdnu": 4,
-    "5 – 5–6 dní v týdnu": 5,
-    "6 – 1× denně": 6,
-    "7 – vícekrát denně": 7,
-}
-
-# FRIEND_TALK (souhlasová škála)
-friend_talk_opts = {
-    "1 – velmi silně nesouhlasí": 1,
-    "2 – nesouhlasí": 2,
-    "3 – spíše nesouhlasí": 3,
-    "4 – ani souhlas, ani nesouhlas": 4,
-    "5 – spíše souhlasí": 5,
-    "6 – souhlasí": 6,
-    "7 – velmi silně souhlasí": 7,
-}
-
-# PHYS_ACT_60 – počet dní s 60+ min pohybu
-phys_act_opts = {
-    "0 dní": 0,
-    "1 den": 1,
-    "2 dny": 2,
-    "3 dny": 3,
-    "4 dny": 4,
-    "5 dní": 5,
-    "6 dní": 6,
-    "7 dní": 7,
-}
-
-# BREAKFAST_WEEKDAYS – snídaně ve všední den (počet dní)
-breakfast_opts = {
-    "1 – nikdy": 1,
-    "2 – 1 den": 2,
-    "3 – 2 dny": 3,
-    "4 – 3 dny": 4,
-    "5 – 4 dny": 5,
-    "6 – 5 dní": 6,
-}
-
-# TOOTH_BRUSHING – čištění zubů
-tooth_opts = {
-    "1 – více než 1× denně": 1,
-    "2 – 1× denně": 2,
-    "3 – 1× týdně": 3,
-    "4 – méně často než týdně": 4,
-    "5 – nikdy": 5,
-}
-
-# FEEL_LOW – jak často se cítí sklesle
-feel_low_opts = {
-    "1 – téměř každý den": 1,
-    "2 – vícekrát týdně": 2,
-    "3 – asi 1× týdně": 3,
-    "4 – asi 1× měsíčně": 4,
-    "5 – zřídka nebo nikdy": 5,
-}
-
-# TALK_FATHER – jak snadno mluví s otcem o problémech
-talk_father_opts = {
-    "1 – velmi snadno": 1,
-    "2 – snadno": 2,
-    "3 – obtížně": 3,
-    "4 – velmi obtížně": 4,
-    "5 – otce nemá / nevídá": 5,
-}
-
-
-# ---------------------------
-# 4) Formulář – uživatelský vstup
-# ---------------------------
-
-st.subheader("✏️ Vyplň parametry dítěte")
+# -----------------------------
+# 4) UI — USER INPUT
+# -----------------------------
 
 col1, col2 = st.columns(2)
 
 with col1:
-    # SEX – musí být číslo 0/1, jinak padá 'could not convert string to float: Chlapec'
-    sex_label = st.radio("Pohlaví", ["Chlapec", "Dívka"])
-    sex = 1 if sex_label == "Chlapec" else 0
+    sex_label = st.selectbox("Pohlaví", list(sex_options.keys()))
+    sex = sex_options[sex_label]
 
-    age = st.number_input("Věk (roky)", min_value=7, max_value=18, step=1, value=13)
+    age = st.number_input("Věk dítěte", min_value=7, max_value=18, step=1)
 
-    sweets_label = st.selectbox("Sladkosti", list(soft_sweets_veggies_opts.keys()))
-    sweets = soft_sweets_veggies_opts[sweets_label]
-
-    soft_label = st.selectbox("Sladké nápoje (limonády)", list(soft_sweets_veggies_opts.keys()))
-    soft_drinks = soft_sweets_veggies_opts[soft_label]
-
-    veg_label = st.selectbox("Zelenina", list(soft_sweets_veggies_opts.keys()))
-    vegetables = soft_sweets_veggies_opts[veg_label]
+    soft_drinks = st.selectbox("Sladké nápoje", soft_drinks_labels)
+    sweets = st.selectbox("Sladkosti", sweets_labels)
+    vegetables = st.selectbox("Zelenina", vegetables_labels)
 
 with col2:
-    friend_label = st.selectbox("Mluví s kamarády o problémech", list(friend_talk_opts.keys()))
-    friend_talk = friend_talk_opts[friend_label]
+    friend_talk = st.selectbox("Mluví s kamarády", friend_talk_labels)
+    phys = st.selectbox("Fyzická aktivita (< 60 min)", phys_labels)
+    breakfast = st.selectbox("Snídaně – všední dny", breakfast_labels)
+    teeth = st.selectbox("Čištění zubů", tooth_labels)
+    feel_low = st.selectbox("Cítí se sklesle", feellow_labels)
+    talk_father = st.selectbox("Komunikuje s otcem", talkfather_labels)
 
-    phys_label = st.selectbox("Kolik dní v týdnu má ≥60 min pohybu", list(phys_act_opts.keys()))
-    phys_act = phys_act_opts[phys_label]
+country = st.selectbox("Země", country_options)
 
-    breakfast_label = st.selectbox("Snídaně ve všední den", list(breakfast_opts.keys()))
-    breakfast = breakfast_opts[breakfast_label]
+# Convert "1 - never" → 1
+def extract_number(label):
+    return int(label.split("-")[0].strip())
 
-    tooth_label = st.selectbox("Čištění zubů", list(tooth_opts.keys()))
-    tooth = tooth_opts[tooth_label]
-
-    feel_label = st.selectbox("Jak často se cítí sklesle", list(feel_low_opts.keys()))
-    feel_low = feel_low_opts[feel_label]
-
-    talk_f_label = st.selectbox("Jak snadno mluví s otcem o problémech", list(talk_father_opts.keys()))
-    talk_father = talk_father_opts[talk_f_label]
-
-
-# ---------------------------
-# 5) Tlačítko – spočítat predikci
-# ---------------------------
-
+# -----------------------------
+# 5) COMPUTE
+# -----------------------------
 if st.button("🔍 Spočítat predikci"):
     user_data = {
         "SEX": sex,
         "AGE": age,
-        "SOFT_DRINKS": soft_drinks,
-        "SWEETS": sweets,
-        "VEGETABLES": vegetables,
-        "FRIEND_TALK": friend_talk,
-        "PHYS_ACT_60": phys_act,
-        "BREAKFAST_WEEKDAYS": breakfast,
-        "TOOTH_BRUSHING": tooth,
-        "FEEL_LOW": feel_low,
-        "TALK_FATHER": talk_father,
+        "SOFT_DRINKS": extract_number(soft_drinks),
+        "SWEETS": extract_number(sweets),
+        "VEGETABLES": extract_number(vegetables),
+        "FRIEND_TALK": extract_number(friend_talk),
+        "PHYS_ACT_60": extract_number(phys),
+        "BREAKFAST_WEEKDAYS": extract_number(breakfast),
+        "TOOTH_BRUSHING": extract_number(teeth),
+        "FEEL_LOW": extract_number(feel_low),
+        "TALK_FATHER": extract_number(talk_father),
+        "COUNTRY_NAME": country
     }
 
-    cls, proba = predict_child(user_data)
+    X_user = build_input_row(user_data)
+    pred_class = model.predict(X_user)[0]
+    pred_proba = model.predict_proba(X_user)[0, 1]
 
-    st.markdown("---")
+    st.write("---")
     st.subheader("📊 Výsledek")
 
-    if cls == 1:
-        st.error(
-            f"**Model odhaduje zvýšené riziko nadváhy/obezity.**\n\n"
-            f"Odhadovaná pravděpodobnost nadváhy: **{proba:.1%}**"
-        )
+    if pred_class == 1:
+        st.error(f"**Vysoké riziko obezity** – pravděpodobnost: **{pred_proba:.1%}**")
     else:
-        st.success(
-            f"**Model odhaduje nižší riziko nadváhy/obezity.**\n\n"
-            f"Odhadovaná pravděpodobnost nadváhy: **{proba:.1%}**"
-        )
-
-    # volitelné: ukázat debug vstupy
-    with st.expander("🔬 Zobrazit vstupy, které šly do modelu"):
-        st.json(user_data)
+        st.success(f"**Nízké riziko obezity** – pravděpodobnost: **{pred_proba:.1%}**")
