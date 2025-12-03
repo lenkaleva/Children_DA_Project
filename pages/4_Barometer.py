@@ -5,7 +5,7 @@ st.title("📊 Child Weight Risk Barometer")
 st.markdown("""
 <style>
     /* Zúžení hlavního obsahu a centrování */
-    .main > div {
+    section.main > div:nth-child(1) {
         max-width: 750px;
         margin: 0 auto;
         padding-top: 2rem;
