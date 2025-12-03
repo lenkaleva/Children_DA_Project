@@ -295,9 +295,14 @@ if st.button("🔍 Evaluate"):
 
     st.write("---")
     st.subheader("📊 Recommendation")
+    st.markdown(
+        "<p style='font-size:13px; color: #666;'>This may take a short while.</p>",
+        unsafe_allow_html=True
+    )
+
 
     API_KEY = st.secrets.get("OPENAI_API_KEY")
-
+        
     if not API_KEY:
         st.info("AI recommendation is not available because the API key is not configured.")
     else:
@@ -312,6 +317,7 @@ Your task:
 - While giving recommendations, focus ONLY on lifestyle and habits, NOT on diagnosing obesity or giving medical treatment.
 - Give 2-3 concrete, practical tips the parents can start with in everyday life 
   (meals, drinks, movement, routines, screen time, sleep, family habits).
+- Make it short but informative, around four to five sentences. do it in structured way with line breaks. 
 
 Background information from the study:
 - Boys had roughly 1.6-1.7 times higher rates of overweight than girls.
@@ -373,3 +379,4 @@ Habits:
         except Exception as e:
             st.error("Sorry, there was an error while generating the recommendation.")
             st.text(str(e))
+
