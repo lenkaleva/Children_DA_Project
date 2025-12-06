@@ -95,6 +95,38 @@ def show_lenka_page():
         fig.update_layout(title_font=dict(size=24))
         return fig
 
+    # ------------------------------------------------------------
+    # LOAD DATA
+    # ------------------------------------------------------------
+    if "df" not in st.session_state:
+        df = pd.read_csv("data.csv")
+        st.session_state.df = df
+    else:
+        df = st.session_state.df.copy()
+
+    # ---- ALWAYS RUN NORMALIZATION (Belgium + UK) ----
+    df["COUNTRY_NAME"] = df["COUNTRY_NAME"].replace({
+        "Belgium (Flemish)": "Belgium",
+        "Belgium (French)": "Belgium"
+    })
+
+    uk_map = {
+        "England": "United Kingdom",
+        "Scotland": "United Kingdom",
+        "Wales": "United Kingdom",
+        "Northern Ireland": "United Kingdom",
+        "Great Britain": "United Kingdom",
+        "UK (England)": "United Kingdom",
+        "UK (Wales)": "United Kingdom",
+        "UK (Scotland)": "United Kingdom"
+    }
+    df["COUNTRY_NAME"] = df["COUNTRY_NAME"].replace(uk_map)
+
+    # ---- APPLY CORRECTIONS ----
+    df.loc[df["BUL_BEEN"] == 999, "BUL_BEEN"] = np.nan
+
+
+
     st.markdown("""
     <style>
 
@@ -133,37 +165,6 @@ def show_lenka_page():
 
 
     st.title("Cross-Country Analysis of Childhood Overweight")
-
-    # ------------------------------------------------------------
-    # LOAD DATA
-    # ------------------------------------------------------------
-    if "df" not in st.session_state:
-        df = pd.read_csv("data.csv")
-        st.session_state.df = df
-    else:
-        df = st.session_state.df.copy()
-
-    # ---- ALWAYS RUN NORMALIZATION (Belgium + UK) ----
-    df["COUNTRY_NAME"] = df["COUNTRY_NAME"].replace({
-        "Belgium (Flemish)": "Belgium",
-        "Belgium (French)": "Belgium"
-    })
-
-    uk_map = {
-        "England": "United Kingdom",
-        "Scotland": "United Kingdom",
-        "Wales": "United Kingdom",
-        "Northern Ireland": "United Kingdom",
-        "Great Britain": "United Kingdom",
-        "UK (England)": "United Kingdom",
-        "UK (Wales)": "United Kingdom",
-        "UK (Scotland)": "United Kingdom"
-    }
-    df["COUNTRY_NAME"] = df["COUNTRY_NAME"].replace(uk_map)
-
-    # ---- APPLY CORRECTIONS ----
-    df.loc[df["BUL_BEEN"] == 999, "BUL_BEEN"] = np.nan
-
 
 
     # ============================================================
@@ -359,10 +360,37 @@ def show_lenka_page():
         color="COUNTRY_NAME",
         barmode="group",
         color_discrete_map=color_map,
-        title="TOP 5 Factors Associated with Overweight"
+        title="TOP 5 Factors"
     )
 
+    # smaller gaps between bars
+    fig_top5.update_layout(
+        bargap=0.05,
+        bargroupgap=0.05
+    )
+
+    fig_top5.update_layout(
+        margin=dict(r=80)   # můžeš dát 60–120 podle toho, jak moc chceš místa
+    )
+
+    # ------------------------------------------------------------
+    # ÚPRAVA POPISKŮ OS – ZVĚTŠENÍ + TUČNÉ
+    # ------------------------------------------------------------
+    fig_top5.update_xaxes(
+        title_text="Factors",
+        title_font=dict(size=16, family="Arial Black"),
+        tickfont=dict(size=12, family="Arial Black")
+    )
+
+    fig_top5.update_yaxes(
+        title_text="Score (normalized)",
+        title_font=dict(size=16, family="Arial Black"),
+        tickfont=dict(size=12, family="Arial Black")
+    )
+
+    # ------------------------------------------------------------
     # Legenda – podmíněné umístění
+    # ------------------------------------------------------------
     if selected_country == "All countries":
         # původní legenda vpravo
         fig_top5.update_layout(
@@ -380,7 +408,7 @@ def show_lenka_page():
         fig_top5.update_layout(
             margin=dict(t=90),
             legend=dict(
-                title="Country",      # ← stejně i zde
+                title="Country",
                 orientation="h",
                 x=0.70,
                 y=1.18,
@@ -506,8 +534,9 @@ def show_lenka_page():
     st.plotly_chart(fig_topX, width='stretch', config={})
 
     # ------------------------------------------------------------
-    # SPODNÍ GRAFY – upravené (menší, stejné, legendy nahoře, vedle sebe)
+    # SPODNÍ GRAFY – upravené (výraznější barvy, zvýraznění ČR)
     # ------------------------------------------------------------
+
     df_eu_2018 = df[df["YEAR"] == 2018].copy()
     if sex_choice == "Girls":
         df_eu_2018 = df_eu_2018[df_eu_2018["SEX"] == 2]
@@ -524,26 +553,85 @@ def show_lenka_page():
     df_dev["DEVIATION"] = df_dev["OVERWEIGHT"] - eu_avg
     df_dev = df_dev.sort_values("DEVIATION")
 
-    # ---------------- GRAF 1 (EU deviation) ----------------
-    fig_dev = px.bar(
-        df_dev,
-        x="DEVIATION", y="COUNTRY_NAME",
-        orientation="h",
-        color="DEVIATION",
-        color_continuous_scale="RdBu_r",
-        title="Deviation from EU Average (2018)",
-    )
 
-    fig_dev.add_vline(x=0)
+    # ------------------------------------------------------------
+    # SPODNÍ GRAFY – EU deviation + dumbbell (finální verze)
+    # ------------------------------------------------------------
+
+    # === Připrava EU 2018 dat podle pohlaví ===
+    df_eu_2018 = df[df["YEAR"] == 2018].copy()
+    if sex_choice == "Girls":
+        df_eu_2018 = df_eu_2018[df_eu_2018["SEX"] == 2]
+    elif sex_choice == "Boys":
+        df_eu_2018 = df_eu_2018[df_eu_2018["SEX"] == 1]
+
+    df_eu_only = df_eu_2018[df_eu_2018["COUNTRY_NAME"].isin(eu_list)]
+    eu_avg = df_eu_only["OVERWEIGHT"].mean()
+
+    # ============================================================
+    #                  GRAF 1 – EU deviation
+    # ============================================================
+
+    # vypočítat deviation a RESETOVAT INDEX → klíč k opravení problému
+    df_dev = (
+        df_eu_only.groupby("COUNTRY_NAME", as_index=False)["OVERWEIGHT"].mean()
+    )
+    df_dev["DEVIATION"] = df_dev["OVERWEIGHT"] - eu_avg
+    df_dev = df_dev.sort_values("DEVIATION").reset_index(drop=True)
+
+    # výrazná škála – nejhorší hodnoty do vínové
+    color_scale = [
+        [0.00, "#08306b"],   # tmavá modrá
+        [0.35, "#2171b5"], 
+        [0.50, "#f7f7f7"],   # bílá
+        [0.70, "#cb181d"],   # červená
+        [1.00, "#4a001f"]    # tmavě vínová
+    ]
+
+    # normalizace
+    norm_vals = (df_dev["DEVIATION"] - df_dev["DEVIATION"].min()) / \
+                (df_dev["DEVIATION"].max() - df_dev["DEVIATION"].min())
+
+    # 1:1 barvy podle pořadí v df_dev
+    colors = [
+        px.colors.sample_colorscale(color_scale, float(v))[0]
+        for v in norm_vals.tolist()
+    ]
+
+    # zvýraznění Czech Republic – nyní spolehlivě
+    cz_idx = df_dev.index[df_dev["COUNTRY_NAME"].str.contains("Czech", case=False)]
+    if len(cz_idx) > 0:
+        colors[cz_idx[0]] = "#ffb400"   # zlatá
+
+    # vytvoření grafu
+    fig_dev = go.Figure()
+    fig_dev.add_trace(go.Bar(
+        x=df_dev["DEVIATION"],
+        y=df_dev["COUNTRY_NAME"],
+        orientation="h",
+        marker=dict(
+            color=colors,
+            line=dict(color="black", width=1.6)
+        )
+    ))
+
+    fig_dev.add_vline(x=0, line_width=2, line_color="black")
 
     fig_dev.update_layout(
+        title="Deviation from EU Average (2018)",
         height=650,
         margin=dict(l=40, r=40, t=60, b=40),
-        title_x=0.0
+        title_x=0.0,
+        yaxis=dict(tickfont=dict(size=16, family="Arial Black")),
+        xaxis=dict(tickfont=dict(size=13))
     )
 
 
-    # ---------------- GRAF 2 (dumbbell) ----------------
+
+    # ============================================================
+    #            GRAF 2 – Dumbbell (Girls vs Boys)
+    # ============================================================
+
     df_gender = df[df["YEAR"] == 2018].copy()
     df_gender = df_gender[df_gender["COUNTRY_NAME"].isin(eu_list)]
     df_gender["SEX_LABEL"] = df_gender["SEX"].map({1: "Boys", 2: "Girls"})
@@ -557,49 +645,72 @@ def show_lenka_page():
     )
 
     df_gender_pivot["DIFF"] = df_gender_pivot["Girls"] - df_gender_pivot["Boys"]
-    df_gender_pivot = df_gender_pivot.sort_values("DIFF")
+    df_gender_pivot = df_gender_pivot.sort_values("DIFF").reset_index(drop=True)
 
     fig_dumbbell = go.Figure()
 
+    # body Girls
     fig_dumbbell.add_trace(go.Scatter(
-        x=df_gender_pivot["Girls"], y=df_gender_pivot["COUNTRY_NAME"],
-        mode="markers", 
-        name="", 
-        marker=dict(color="hotpink", size=12)
+        x=df_gender_pivot["Girls"],
+        y=df_gender_pivot["COUNTRY_NAME"],
+        mode="markers",
+        marker=dict(color="hotpink", size=12),
+        name="Girls"
     ))
 
+    # body Boys
     fig_dumbbell.add_trace(go.Scatter(
-        x=df_gender_pivot["Boys"], y=df_gender_pivot["COUNTRY_NAME"],
-        mode="markers", 
-        name="", 
-        marker=dict(color="cornflowerblue", size=12)
+        x=df_gender_pivot["Boys"],
+        y=df_gender_pivot["COUNTRY_NAME"],
+        mode="markers",
+        marker=dict(color="cornflowerblue", size=12),
+        name="Boys"
     ))
 
+    # spojovací čáry
     fig_dumbbell.add_trace(go.Scatter(
         x=pd.concat([df_gender_pivot["Girls"], df_gender_pivot["Boys"]]),
         y=pd.concat([df_gender_pivot["COUNTRY_NAME"], df_gender_pivot["COUNTRY_NAME"]]),
         mode="lines",
-        showlegend=False,
-        line=dict(color="gray", width=1.5)
+        line=dict(color="gray", width=1.5),
+        showlegend=False
     ))
 
+    # zvýraznění Czech Republic
+    row = df_gender_pivot["COUNTRY_NAME"].str.contains("Czech", case=False)
+    if row.any():
+        fig_dumbbell.add_trace(go.Scatter(
+            x=[df_gender_pivot.loc[row, "Girls"].iloc[0],
+            df_gender_pivot.loc[row, "Boys"].iloc[0]],
+            y=["Czech Republic", "Czech Republic"],
+            mode="lines+markers",
+            line=dict(color="gold", width=4),
+            marker=dict(color="gold", size=18, line=dict(color="black", width=1)),
+            name="Czech Republic"
+        ))
+
+    fig_dumbbell.update_yaxes(tickfont=dict(size=15, family="Arial Black"))
     fig_dumbbell.update_layout(
         title="<b>Difference Between ♀️ Girls and ♂️ Boys</b>",
         title_x=0.0,
         height=650,
         margin=dict(l=40, r=40, t=60, b=40),
-        showlegend=False
+        showlegend=True
     )
 
 
-    # ---------------- vykreslení – bez velké mezery ----------------
+
+    # ============================================================
+    # Vykreslení do dvou sloupců
+    # ============================================================
+
     col4, col5 = st.columns([1, 1])
 
     with col4:
-        st.plotly_chart(title24(fig_dev), width='stretch', config={})
+        st.plotly_chart(title24(fig_dev), use_container_width=True, config={})
 
     with col5:
-        st.plotly_chart(title24(fig_dumbbell), width='stretch', config={})
+        st.plotly_chart(title24(fig_dumbbell), use_container_width=True, config={})
 
 
 # ------------------------------------------------------------

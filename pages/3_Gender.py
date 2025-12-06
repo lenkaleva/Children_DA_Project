@@ -513,7 +513,7 @@ if not df_norm_detail.empty:
                 barmode="group",
                 category_orders={"FACTOR_LABEL": order_help},
                 color_discrete_map={"Boys": "#3b8ee1", "Girls": "#eb8fbd"},
-                title=f"Top 5 Behaviours Linked to Overweight – Boys vs Girls ({DETAIL_YEAR})"
+                title=f"Top 5 Behaviours Linked to Overweight ({DETAIL_YEAR})"
             )
 
             fig2.update_layout(
