@@ -5,46 +5,33 @@ st.title("📊 Child Weight Risk Barometer")
 st.markdown("""
 <style>
     /* Zúžení hlavního obsahu a centrování */
-    section.main > div:nth-child(1) {
+    .main > div {
         max-width: 750px;
         margin: 0 auto;
         padding-top: 2rem;
     }
 
-    /* LABELS (QUESTIONS) – text nad selectboxem */
-    div[data-testid="stSelectbox"] label p {
-        font-size: 16px !important;
-        font-weight: 500 !important;
-        color: #555 !important;
-        margin-bottom: 6px !important;
-        letter-spacing: 0.2px;
-    }
-
-    /* SELECTBOX CONTAINER – mezera mezi otázkami */
+    /* Každý selectbox blok – stejné rozestupy mezi otázkami */
     div[data-testid="stSelectbox"] {
-        margin-bottom: 14px;
+        margin-top: 0 !important;
+        margin-bottom: 18px !important;
     }
 
-    /* SELECTBOX APPEARANCE – border, background, šířka */
+    /* Vzhled a šířka selectboxu */
     div[data-baseweb="select"] {
         border-radius: 8px !important;
         background-color: #f8f9fb !important;
         border: 1px solid #e2e6ec !important;
-        max-width: 600px;
-        margin: 0 auto;               /* vycentrování v užším sloupci */
+
+        max-width: 480px;   /* šířka pole, můžeš doladit */
+        width: 100%;
+        margin: 0;
     }
 
-    /* TEXT UVNITŘ SELECTBOXU – bez „tab“ odsazení */
+    /* Text uvnitř selectboxu */
     div[data-baseweb="select"] div {
         font-size: 15px !important;
         color: #222 !important;
-        padding-left: 0.2rem !important;  /* minimální, aby text nelepí na hranu */
-    }
-
-    /* HOVER EFFECT (jemné zvýraznění) */
-    div[data-baseweb="select"]:hover {
-        border-color: #c5ccd6 !important;
-        background-color: #f5f6f8 !important;
     }
 </style>
 """, unsafe_allow_html=True)
