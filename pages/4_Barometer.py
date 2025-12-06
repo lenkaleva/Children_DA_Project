@@ -1,4 +1,4 @@
-import streamlit as st
+wimport streamlit as st
 from openai import OpenAI
 
 st.title("📊 Child Weight Risk Barometer")
