@@ -534,12 +534,14 @@ if not df_norm_detail.empty and "top5_corr" in locals():
     df_ow_detail = df_norm_detail[df_norm_detail["OVERWEIGHT"] == 1].copy()
 
     if not df_ow_detail.empty and remaining_factors:
+        # průměry podle pohlaví
         sex_means_all = (
             df_ow_detail
             .groupby("SEX", as_index=False, observed=True)[remaining_factors]
             .mean()
         )
 
+        # potřebujeme obě pohlaví 1 = Boys, 2 = Girls
         if set(sex_means_all["SEX"]) == {1, 2}:
             sex_long_all = sex_means_all.melt(
                 id_vars=["SEX"],
@@ -549,6 +551,7 @@ if not df_norm_detail.empty and "top5_corr" in locals():
             )
             sex_long_all["SEX_STRING"] = sex_long_all["SEX"].map({1: "Boys", 2: "Girls"})
 
+            # tabulka rozdílů Girls - Boys
             gap_table_rest = (
                 sex_long_all
                 .groupby(["FACTOR", "SEX_STRING"], observed=True)["VALUE"]
@@ -561,6 +564,7 @@ if not df_norm_detail.empty and "top5_corr" in locals():
             )
             df_gap = gap_table_rest.reset_index()
 
+            # pořadí faktorů podle velikosti rozdílu
             factor_order = (
                 df_gap
                 .sort_values("GIRLS_MINUS_BOYS", ascending=False)["FACTOR"]
@@ -572,17 +576,20 @@ if not df_norm_detail.empty and "top5_corr" in locals():
                 factor_alias.get(f, f) for f in factor_order
             ]
 
+            # kdo má vyšší riziko
             df_gap["SIDE"] = np.where(
                 df_gap["GIRLS_MINUS_BOYS"] > 0,
                 "Girls",
                 "Boys"
             )
 
+            # PŮVODNÍ barvy – neměníme
             color_gap = {
                 "Girls": "#eb8fbd",
                 "Boys": "#3b8ee1"
             }
 
+            # základní graf
             fig3 = px.bar(
                 df_gap,
                 x="FACTOR_LABEL",
@@ -593,11 +600,21 @@ if not df_norm_detail.empty and "top5_corr" in locals():
                 title=f"Gender Gap Across Risk Factors (Overweight children, {DETAIL_YEAR})"
             )
 
+            # 🔹 ZVÝRAZNĚNÍ SILUETY – černá kontura barů
+            fig3.update_traces(
+                marker_line_color="black",
+                marker_line_width=1.6
+            )
+
+            # 🔹 LAYOUT – zvýrazněné názvy faktorů, NE číselná osa
             fig3.update_layout(
                 xaxis_title="Risk factor",
                 yaxis_title="Girls - Boys (difference)",
                 legend_title="Group with higher risk",
-                xaxis=dict(tickangle=-40),
+                xaxis=dict(
+                    tickangle=-40,
+                    tickfont=dict(size=13, family="Arial Black")  # jen kategorie
+                ),
                 yaxis=dict(
                     tickmode="linear",
                     tick0=0,
@@ -608,14 +625,16 @@ if not df_norm_detail.empty and "top5_corr" in locals():
                     zeroline=False,
                     showline=False,
                     linewidth=0
+                    # žádný tickfont → čísla na ose Y nejsou zvýrazněná
                 ),
-                height=500,
+                height=500,                                 # 🔹 POZOR: TADY, ne v yaxis
                 margin=dict(l=80, r=40, b=120),
                 title=dict(
                     text=f"Gender Gap by Risk Factor ({DETAIL_YEAR})",
-                    font=dict(size=24)
+                    font=dict(size=24, family="Arial Black")
                 )
             )
+
 
 
 # ------------------------------------------------------------
